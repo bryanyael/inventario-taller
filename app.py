@@ -199,6 +199,53 @@ def devolver_pieza(codigo, pieza_id):
     conn.close()
 
     return redirect(url_for('maquina', codigo=codigo))
+    import pandas as pd
+
+@app.route('/admin/cargar_excel', methods=['POST'])
+def cargar_excel():
+    file = request.files.get('archivo_excel')
+    if not file or file.filename == '':
+        return "No seleccionaste ningún archivo", 400
+
+    try:
+        # Lee el archivo si es .xlsx o .csv
+        if file.filename.endswith('.csv'):
+            df = pd.read_csv(file)
+        else:
+            df = pd.read_excel(file)
+
+        # Normalizar nombres de columnas a minúsculas y sin espacios extra
+        df.columns = [str(c).strip().lower() for c in df.columns]
+
+        conn = sqlite3.connect('inventario.db')
+        c = conn.cursor()
+
+        for _, row in df.iterrows():
+            cod_maq = str(row.get('codigo_maquina', '')).strip()
+            marca = str(row.get('marca', '')).strip()
+            modelo = str(row.get('modelo', '')).strip()
+            num_serie = str(row.get('numero_serie', '')).strip()
+            ubicacion = str(row.get('ubicacion', '')).strip()
+
+            nom_pieza = str(row.get('nombre_pieza', '')).strip()
+            cod_pieza = str(row.get('codigo_pieza', '')).strip()
+
+            if cod_maq:
+                # 1. Insertar máquina si no existe
+                c.execute('''INSERT OR IGNORE INTO maquinas (codigo, marca, modelo, numero_serie, ubicacion)
+                             VALUES (?, ?, ?, ?, ?)''', (cod_maq, marca, modelo, num_serie, ubicacion))
+                
+                # 2. Insertar pieza si viene especificada
+                if nom_pieza and cod_pieza:
+                    c.execute('''INSERT INTO piezas (codigo_maquina, nombre, codigo, disponible, estado)
+                                 VALUES (?, ?, ?, 1, 'Disponible')''', (cod_maq, nom_pieza, cod_pieza))
+
+        conn.commit()
+        conn.close()
+        return redirect(url_for('inicio'))
+
+    except Exception as e:
+        return f"Error al procesar el Excel: {str(e)}", 500
 
 
 # ==========================================
