@@ -209,10 +209,11 @@ def cargar_excel():
         return "No seleccionaste ningún archivo", 400
 
     try:
+        # Leer la primera hoja
         if file.filename.endswith('.csv'):
             df = pd.read_csv(file)
         else:
-            df = pd.read_excel(file)
+            df = pd.read_excel(file, sheet_name=0)
 
         # Limpiar nombres de columnas
         df.columns = [str(c).strip() for c in df.columns]
@@ -221,37 +222,40 @@ def cargar_excel():
         c = conn.cursor()
 
         insertados = 0
+        # Columnas que son datos del equipo y no piezas
+        cols_ignorar = ['Serie del equipo', 'Modelo', 'Observaciones', 'Fecha', 'Técnico', 'Entregado por', 'Firma', 'RENTADA']
+
         for _, row in df.iterrows():
-            # Obtener Serie y Modelo
-            serie = str(row.get('SERIE DEL EQUIPO', '')).strip()
-            modelo = str(row.get('MODELO', '')).strip()
+            serie = str(row.get('Serie del equipo', '')).strip()
+            modelo = str(row.get('Modelo', '')).strip()
+            ubicacion = str(row.get('Observaciones', '')).strip()
+            if not ubicacion or ubicacion.lower() == 'nan':
+                ubicacion = 'Taller'
 
             if serie and serie.lower() != 'nan':
-                # 1. Registrar o actualizar la máquina
+                # 1. Guardar la máquina
                 c.execute('''INSERT OR IGNORE INTO maquinas (codigo, marca, modelo, numero_serie, ubicacion)
-                             VALUES (?, ?, ?, ?, ?)''', (serie, 'Taller', modelo, serie, 'Taller'))
+                             VALUES (?, ?, ?, ?, ?)''', (serie, 'Kyocera', modelo, serie, ubicacion))
                 
-                # 2. Recorrer el resto de columnas como piezas
-                columnas_piezas = [col for col in df.columns if col not in ['SERIE DEL EQUIPO', 'MODELO', 'Columna2']]
-                
-                for idx, col_pieza in enumerate(columnas_piezas):
-                    val_pieza = str(row.get(col_pieza, '')).strip()
-                    
-                    # Si la celda tiene contenido o no está vacía
-                    if val_pieza and val_pieza.lower() != 'nan':
-                        nombre_final = f"{col_pieza} ({val_pieza})" if val_pieza.lower() not in ['si', 'x', '1', 'ok'] else col_pieza
-                        cod_pieza = f"PZ-{serie}-{idx+1}"
+                # 2. Guardar cada componente/pieza
+                idx_pieza = 1
+                for col_pieza in df.columns:
+                    if col_pieza not in cols_ignorar:
+                        val_pieza = str(row.get(col_pieza, '')).strip()
+                        
+                        if val_pieza and val_pieza.lower() != 'nan':
+                            # Si tiene algo como 'Sí', 'si', '/' o una descripción corta
+                            nombre_pieza = f"{col_pieza}: {val_pieza}" if val_pieza.lower() not in ['sí', 'si', '/'] else col_pieza
+                            cod_pieza = f"PZ-{serie}-{idx_pieza}"
 
-                        c.execute('''INSERT INTO piezas (codigo_maquina, nombre, codigo, disponible, estado)
-                                     VALUES (?, ?, ?, 1, 'Disponible')''', (serie, nombre_final, cod_pieza))
-                
+                            c.execute('''INSERT INTO piezas (codigo_maquina, nombre, codigo, disponible, estado)
+                                         VALUES (?, ?, ?, 1, 'Disponible')''', (serie, nombre_pieza, cod_pieza))
+                            idx_pieza += 1
+
                 insertados += 1
 
         conn.commit()
         conn.close()
-
-        if insertados == 0:
-            return "<h1>⚠️ El archivo no tenía filas con datos</h1><p>Asegúrate de llenar datos debajo de la fila de encabezados.</p><br><a href='/'>Volver</a>"
 
         return redirect(url_for('inicio'))
 
