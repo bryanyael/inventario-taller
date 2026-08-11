@@ -59,30 +59,32 @@
                                 {{ p.estado if p.estado else "No hay existencia" }}
                             </span>
                             
-                            <!-- Botón que abre el Modal emergente -->
+                            <!-- Botón Modal Devolver -->
                             <button type="button" class="btn btn-warning btn-sm rounded-pill px-3 text-dark fw-semibold" data-bs-toggle="modal" data-bs-target="#modalDevolver{{ p.id }}">
                                 Devolver
                             </button>
 
-                            <!-- Modal Emergente para Subir Evidencia -->
+                            <!-- Modal Emergente -->
                             <div class="modal fade" id="modalDevolver{{ p.id }}" tabindex="-1" aria-hidden="true">
                                 <div class="modal-dialog modal-dialog-centered">
                                     <div class="modal-content text-start">
-                                        <form action="/devolver_pieza/{{ codigo }}/{{ p.id }}" method="POST" enctype="multipart/form-data">
+                                        <form action="/devolver_pieza/{{ codigo }}/{{ p.id }}" method="POST" enctype="multipart/form-data" onsubmit="comprimirImagen(event, this)">
                                             <div class="modal-header">
                                                 <h5 class="modal-title fw-bold">Devolver: {{ p.nombre }}</h5>
                                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                             </div>
                                             <div class="modal-body">
                                                 <div class="mb-3">
-                                                    <label class="form-label fw-semibold">Foto / Comprobante de entrega (Obligatorio)</label>
-                                                    <input type="file" name="foto_evidencia" class="form-control" accept="image/*" capture="environment" required>
-                                                    <div class="form-text">Toma una foto de la pieza recibida o adjunta una imagen.</div>
+                                                    <label class="form-label fw-semibold">Foto / Comprobante (Opcional)</label>
+                                                    <input type="file" name="foto_evidencia" class="form-control input-foto" accept="image/*" capture="environment">
+                                                    <div class="form-text">Toma una foto de la entrega de la pieza.</div>
                                                 </div>
                                             </div>
                                             <div class="modal-footer">
                                                 <button type="button" class="btn btn-light rounded-pill" data-bs-dismiss="modal">Cancelar</button>
-                                                <button type="submit" class="btn btn-warning rounded-pill fw-bold text-dark">Confirmar Devolución</button>
+                                                <button type="submit" class="btn btn-warning rounded-pill fw-bold text-dark btn-enviar">
+                                                    Confirmar Devolución
+                                                </button>
                                             </div>
                                         </form>
                                     </div>
@@ -103,7 +105,56 @@
         <a href="/" class="btn btn-link text-decoration-none text-secondary"><i class="bi bi-house me-1"></i> Volver al Inicio</a>
     </div>
 
-    <!-- Scripts de Bootstrap para activar el Modal -->
+    <!-- Scripts Bootstrap -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Script de Compresión Instantánea en el Celular -->
+    <script>
+    function comprimirImagen(e, form) {
+        const fileInput = form.querySelector('.input-foto');
+        const btnEnviar = form.querySelector('.btn-enviar');
+        
+        if (fileInput.files.length === 0) return; // Si no subió foto, continúa normal
+        
+        e.preventDefault(); // Pausar envío para comprimir
+        btnEnviar.disabled = true;
+        btnEnviar.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Procesando...';
+
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+
+        reader.onload = function(event) {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const max_width = 800; // Reducir tamaño máximo a 800px
+                let width = img.width;
+                let height = img.height;
+
+                if (width > max_width) {
+                    height = Math.round((height *= max_width / width));
+                    width = max_width;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // Convertir a JPEG comprimido
+                canvas.toBlob(function(blob) {
+                    const newFile = new File([blob], file.name, { type: 'image/jpeg' });
+                    const container = new DataTransfer();
+                    container.items.add(newFile);
+                    fileInput.files = container.files;
+                    
+                    form.submit(); // Enviar formulario ya comprimido
+                }, 'image/jpeg', 0.7);
+            }
+        }
+        reader.readAsDataURL(file);
+    }
+    </script>
 </body>
 </html>
