@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import csv
 from io import StringIO
@@ -5,7 +6,10 @@ from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, Response
 
 app = Flask(__name__)
-DB_NAME = "inventario.db"
+
+# Configuración de ruta absoluta para que Render encuentre la base de datos sin errores
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_NAME = os.path.join(BASE_DIR, "inventario.db")
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -52,6 +56,7 @@ def init_db():
     conn.commit()
     conn.close()
 
+# Inicializamos la base de datos al arrancar
 init_db()
 
 
@@ -242,7 +247,6 @@ def ver_registros():
     return render_template("registros.html", registros=registros)
 
 
-# DESCARGAR REGISTROS EN EXCEL (CSV)
 @app.route("/admin/exportar_excel")
 def exportar_excel():
     conn = sqlite3.connect(DB_NAME)
@@ -264,7 +268,6 @@ def exportar_excel():
     )
 
 
-# CREAR NUEVA MÁQUINA
 @app.route("/admin/nueva_maquina", methods=["GET", "POST"])
 def nueva_maquina():
     if request.method == "POST":
@@ -288,7 +291,6 @@ def nueva_maquina():
     return render_template("nueva_maquina.html")
 
 
-# AGREGAR PIEZAS A UNA MÁQUINA
 @app.route("/admin/agregar_piezas/<codigo>", methods=["GET", "POST"])
 def agregar_piezas(codigo):
     conn = sqlite3.connect(DB_NAME)
