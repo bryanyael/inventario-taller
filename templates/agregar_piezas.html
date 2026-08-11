@@ -1,1 +1,45 @@
 
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Agregar Piezas</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f4f6f8; }
+        .box { background: white; padding: 20px; border-radius: 8px; max-width: 450px; margin: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        input, button { width: 100%; padding: 10px; margin-top: 6px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; }
+        button { background: #28a745; color: white; font-weight: bold; border: none; cursor: pointer; }
+        ul { padding-left: 20px; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>⚙️ Piezas para {{ codigo }}</h2>
+
+        <form action="/admin/agregar_piezas/{{ codigo }}" method="POST">
+            <label>Nombre de la Pieza:</label>
+            <input type="text" name="nombre" placeholder="Ej. Fusor, Tambor, Láser..." required>
+
+            <label>Código de la Pieza:</label>
+            <input type="text" name="codigo_pieza" placeholder="Ej. FK-003, DR-003..." required>
+
+            <button type="submit">➕ AGREGAR ESTA PIEZA</button>
+        </form>
+
+        <hr>
+        <h4>Piezas registradas en esta máquina:</h4>
+        <ul>
+            {% for p in piezas %}
+                <li><strong>{{ p[0] }}</strong> ({{ p[1] }})</li>
+            {% else %}
+                <li style="color:#777;">Aún no hay piezas agregadas.</li>
+            {% endfor %}
+        </ul>
+
+        <br>
+        <a href="/admin/imprimir_qrs" style="display:block; text-align:center; background:#007bff; color:white; padding:10px; text-decoration:none; border-radius:5px; font-weight:bold;">
+            ✅ FINALIZAR E IMPRIMIR QR
+        </a>
+    </div>
+</body>
+</html>
