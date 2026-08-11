@@ -1,1 +1,43 @@
 
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitar Pieza</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f4f6f8; }
+        .box { background: white; padding: 20px; border-radius: 8px; max-width: 400px; margin: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        input, button { width: 100%; padding: 10px; margin-top: 6px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; }
+        button { background: #28a745; color: white; font-weight: bold; border: none; font-size: 1rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="box">
+        <h3>🔩 Retiro de Pieza</h3>
+        <p><strong>Máquina:</strong> {{ codigo }}</p>
+        <p><strong>Pieza:</strong> {{ pieza.nombre }} ({{ pieza.codigo }})</p>
+        <hr>
+
+        <form action="/enviar_solicitud" method="POST">
+            <input type="hidden" name="codigo" value="{{ codigo }}">
+            <input type="hidden" name="pieza_id" value="{{ pieza.id }}">
+
+            <label><strong>Nombre del Técnico:</strong></label>
+            <input type="text" name="tecnico" placeholder="Tu nombre y apellido" required>
+
+            <label><strong>Motivo del Retiro:</strong></label>
+            <input type="text" name="motivo" placeholder="Ej. Prueba en equipo cliente X" required>
+
+            <label><strong>Fecha estimada de regreso/rearmado:</strong></label>
+            <input type="date" name="fecha_regreso" required>
+
+            <button type="submit">CONFIRMAR Y RETIRAR</button>
+        </form>
+
+        <a href="/maquina/{{ codigo }}" style="display:block; text-align:center; color:#666; text-decoration:none;">← Cancelar</a>
+    </div>
+
+</body>
+</html>
