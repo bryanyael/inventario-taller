@@ -209,24 +209,37 @@ def cargar_excel():
         return "No seleccionaste ningún archivo", 400
 
     try:
-        # Leer la primera hoja
         if file.filename.endswith('.csv'):
             df = pd.read_csv(file)
         else:
             df = pd.read_excel(file, sheet_name=0)
 
-        # Limpiar nombres de columnas del Excel
         df.columns = [str(c).strip() for c in df.columns]
 
         conn = sqlite3.connect('inventario.db')
         c = conn.cursor()
 
-        # Averiguar cómo se llaman las columnas de la tabla piezas
+        # Obtener nombres de columnas exactos de la tabla 'piezas' en tu BD
         c.execute("PRAGMA table_info(piezas)")
-        columnas_piezas_db = [col[1] for col in c.fetchall()]
+        cols_bd = [col[1] for col in c.fetchall()]
+
+        # Identificar qué columna une la pieza con la máquina
+        col_fk = 'codigo_maquina'
+        if 'maquina_codigo' in cols_bd:
+            col_fk = 'maquina_codigo'
+        elif 'maquina' in cols_bd:
+            col_fk = 'maquina'
+
+        # Identificar cómo se llama la columna del código de la pieza (si existe)
+        col_cod_pz = None
+        for posible in ['codigo', 'codigo_pieza', 'cod_pieza', 'id_pieza']:
+            if posible in cols_bd:
+                col_cod_pz = posible
+                break
 
         cols_ignorar = ['Serie del equipo', 'Modelo', 'Observaciones', 'Fecha', 'Técnico', 'Entregado por', 'Firma', 'RENTADA']
 
+        insertados = 0
         for _, row in df.iterrows():
             serie = str(row.get('Serie del equipo', '')).strip()
             modelo = str(row.get('Modelo', '')).strip()
@@ -235,11 +248,11 @@ def cargar_excel():
                 ubicacion = 'Taller'
 
             if serie and serie.lower() != 'nan':
-                # 1. Guardar la máquina
+                # 1. Insertar máquina
                 c.execute('''INSERT OR IGNORE INTO maquinas (codigo, marca, modelo, numero_serie, ubicacion)
                              VALUES (?, ?, ?, ?, ?)''', (serie, 'Kyocera', modelo, serie, ubicacion))
                 
-                # 2. Guardar cada componente/pieza
+                # 2. Insertar piezas
                 idx_pieza = 1
                 for col_pieza in df.columns:
                     if col_pieza not in cols_ignorar:
@@ -249,17 +262,19 @@ def cargar_excel():
                             nombre_pieza = f"{col_pieza}: {val_pieza}" if val_pieza.lower() not in ['sí', 'si', '/'] else col_pieza
                             cod_pieza = f"PZ-{serie}-{idx_pieza}"
 
-                            # Insertar dependiendo de la columna que tenga la BD
-                            if 'maquina_codigo' in columnas_piezas_db:
-                                c.execute('''INSERT INTO piezas (maquina_codigo, nombre, codigo, disponible, estado)
-                                             VALUES (?, ?, ?, 1, 'Disponible')''', (serie, nombre_pieza, cod_pieza))
-                            elif 'maquina' in columnas_piezas_db:
-                                c.execute('''INSERT INTO piezas (maquina, nombre, codigo, disponible, estado)
-                                             VALUES (?, ?, ?, 1, 'Disponible')''', (serie, nombre_pieza, cod_pieza))
+                            # Armar la consulta SQL dinámicamente según la estructura real de la BD
+                            if col_cod_pz:
+                                query = f'''INSERT INTO piezas ({col_fk}, nombre, {col_cod_pz}, disponible, estado)
+                                           VALUES (?, ?, ?, 1, 'Disponible')'''
+                                c.execute(query, (serie, nombre_pieza, cod_pieza))
                             else:
-                                c.execute('''INSERT INTO piezas (codigo_maquina, nombre, codigo, disponible, estado)
-                                             VALUES (?, ?, ?, 1, 'Disponible')''', (serie, nombre_pieza, cod_pieza))
+                                query = f'''INSERT INTO piezas ({col_fk}, nombre, disponible, estado)
+                                           VALUES (?, ?, 1, 'Disponible')'''
+                                c.execute(query, (serie, nombre_pieza))
+
                             idx_pieza += 1
+
+                insertados += 1
 
         conn.commit()
         conn.close()
@@ -268,7 +283,6 @@ def cargar_excel():
 
     except Exception as e:
         return f"Error al procesar el Excel: {str(e)}", 500
-
 # ==========================================
 # RUTAS DE ADMINISTRACIÓN
 # ==========================================
