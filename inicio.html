@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventario Taller</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f8; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 90vh; }
+        .main-card { background-color: white; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); max-width: 450px; width: 100%; padding: 30px 25px; text-align: center; box-sizing: border-box; }
+        .icon { font-size: 3.5rem; margin-bottom: 10px; }
+        h1 { font-size: 1.6rem; margin: 0 0 10px 0; color: #111; }
+        p.description { color: #555; font-size: 0.95rem; margin-bottom: 20px; }
+        .instruction-box { background-color: #eef6ff; border-left: 4px solid #0066cc; padding: 12px 15px; text-align: left; border-radius: 0 8px 8px 0; margin-bottom: 25px; font-size: 0.88rem; color: #333; }
+        .admin-menu { margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; display: flex; flex-direction: column; gap: 10px; }
+        .admin-btn { display: block; padding: 10px; background: #f8f9fa; border: 1px solid #ddd; color: #333; text-decoration: none; border-radius: 6px; font-size: 0.9rem; font-weight: 500; }
+        .admin-btn:hover { background: #e2e8f0; }
+    </style>
+</head>
+<body>
+    <div class="main-card">
+        <div class="icon">🖨️⚙️</div>
+        <h1>Control de Repuestos</h1>
+        <p class="description">Sistema de autoservicio y retiro de piezas en taller.</p>
+
+        <div class="instruction-box">
+            <strong>¿Necesitas un repuesto urgente?</strong><br>
+            Apunta la cámara de tu celular al <strong>código QR pegado en la máquina</strong> para ver sus repuestos y retirarlos.
+        </div>
+
+        <div class="admin-menu">
+            <span style="font-size:0.8rem; color:#888; font-weight:bold;">PANEL DE GESTIÓN (ADMIN)</span>
+            <a href="/admin/registros" class="admin-btn">📋 Ver Historial de Piezas</a>
+            <a href="/admin/nueva_maquina" class="admin-btn">➕ Registrar Nueva Máquina</a>
+            <a href="/admin/imprimir_qrs" class="admin-btn">🖨️ Imprimir Etiquetas QR</a>
+        </div>
+    </div>
+</body>
+</html>
