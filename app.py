@@ -179,49 +179,62 @@ def enviar_solicitud():
     """
 
 
-# Carpeta donde se guardarán las fotos de evidencia
-UPLOAD_FOLDER = 'static/evidencias'
+# Asegurar que la carpeta de fotos exista al arrancar
+UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'evidencias')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 @app.route('/devolver_pieza/<codigo>/<int:pieza_id>', methods=['POST'])
 def devolver_pieza(codigo, pieza_id):
-    conn = sqlite3.connect('inventario.db')
-    c = conn.cursor()
-    
-    # 1. Obtener datos de la pieza
-    c.execute("SELECT nombre, codigo FROM piezas WHERE id = ?", (pieza_id,))
-    pieza = c.fetchone()
-    
-    # 2. Procesar la foto subida
-    foto = request.files.get('foto_evidencia')
-    ruta_foto = None
-    
-    if foto and foto.filename != '':
-        nombre_foto = secure_filename(f"devolucion_{codigo}_{pieza_id}_{foto.filename}")
-        ruta_foto = os.path.join(app.config['UPLOAD_FOLDER'], nombre_foto)
-        foto.save(ruta_foto)
-
-    if pieza:
-        nom_pieza, cod_pieza = pieza[0], pieza[1]
+    try:
+        conn = sqlite3.connect('inventario.db')
+        c = conn.cursor()
         
-        # 3. Restablecer estado a Disponible
+        # 1. Obtener datos de la pieza
+        c.execute("SELECT nombre, codigo FROM piezas WHERE id = ?", (pieza_id,))
+        pieza = c.fetchone()
+        
+        ruta_foto_db = None
+
+        # 2. Intentar guardar la foto si la enviaron
+        if 'foto_evidencia' in request.files:
+            foto = request.files['foto_evidencia']
+            if foto and foto.filename != '':
+                try:
+                    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+                    ext = os.path.splitext(foto.filename)[1]
+                    nombre_foto = secure_filename(f"dev_{codigo}_{pieza_id}{ext}")
+                    path_completo = os.path.join(app.config['UPLOAD_FOLDER'], nombre_foto)
+                    
+                    foto.save(path_completo)
+                    ruta_foto_db = f"/static/evidencias/{nombre_foto}"
+                except Exception as img_err:
+                    print(f"Error al guardar imagen: {img_err}")
+
+        # 3. Actualizar la pieza a Disponible
         c.execute("UPDATE piezas SET disponible = 1, estado = 'Disponible' WHERE id = ?", (pieza_id,))
         
-        # 4. Registrar devolución e incluir la ruta de la foto en la bitácora
-        detalle_accion = f"Devuelto a equipo {codigo}"
-        if ruta_foto:
-            detalle_accion += f" (Evidencia: /{ruta_foto})"
-            
-        c.execute("""INSERT INTO registros (codigo_pieza, tecnico, accion) 
-                     VALUES (?, ?, ?)""", (cod_pieza or nom_pieza, 'Sistema/Taller', detalle_accion))
+        # 4. Registrar en historial
+        if pieza:
+            nom_pieza, cod_pieza = pieza[0], pieza[1]
+            detalle = f"Devuelto a equipo {codigo}"
+            if ruta_foto_db:
+                detalle += f" (Foto: {ruta_foto_db})"
+                
+            # Verificar si existe la tabla registros antes de insertar
+            c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='registros'")
+            if c.fetchone():
+                c.execute("""INSERT INTO registros (codigo_pieza, tecnico, accion) 
+                             VALUES (?, ?, ?)""", (cod_pieza or nom_pieza, 'Sistema/Taller', detalle))
         
         conn.commit()
-    conn.close()
-    
-    return redirect(f"/maquina/{codigo}")
+        conn.close()
 
-    return redirect(url_for('maquina', codigo=codigo))
+    except Exception as e:
+        print(f"Error en devolución: {e}")
+        return f"Error al procesar devolución: {str(e)}", 500
+
+    return redirect(f"/maquina/{codigo}")
     import pandas as pd
 
 @app.route('/admin/limpiar_bd', methods=['POST'])
