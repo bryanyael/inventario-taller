@@ -202,6 +202,20 @@ def devolver_pieza(codigo, pieza_id):
     return redirect(url_for('maquina', codigo=codigo))
     import pandas as pd
 
+@app.route('/admin/limpiar_bd', methods=['POST'])
+def limpiar_bd():
+    try:
+        conn = sqlite3.connect('inventario.db')
+        c = conn.cursor()
+        c.execute("DELETE FROM piezas")
+        c.execute("DELETE FROM maquinas")
+        c.execute("DELETE FROM registros")
+        conn.commit()
+        conn.close()
+        return redirect(url_for('inicio'))
+    except Exception as e:
+        return f"Error al limpiar la base de datos: {str(e)}", 500
+
 @app.route('/admin/cargar_excel', methods=['POST'])
 def cargar_excel():
     file = request.files.get('archivo_excel')
@@ -219,18 +233,16 @@ def cargar_excel():
         conn = sqlite3.connect('inventario.db')
         c = conn.cursor()
 
-        # Obtener nombres de columnas exactos de la tabla 'piezas' en tu BD
+        # Obtener columnas de la tabla piezas
         c.execute("PRAGMA table_info(piezas)")
         cols_bd = [col[1] for col in c.fetchall()]
 
-        # Identificar qué columna une la pieza con la máquina
         col_fk = 'codigo_maquina'
         if 'maquina_codigo' in cols_bd:
             col_fk = 'maquina_codigo'
         elif 'maquina' in cols_bd:
             col_fk = 'maquina'
 
-        # Identificar cómo se llama la columna del código de la pieza (si existe)
         col_cod_pz = None
         for posible in ['codigo', 'codigo_pieza', 'cod_pieza', 'id_pieza']:
             if posible in cols_bd:
@@ -259,18 +271,28 @@ def cargar_excel():
                         val_pieza = str(row.get(col_pieza, '')).strip()
                         
                         if val_pieza and val_pieza.lower() != 'nan':
-                            nombre_pieza = f"{col_pieza}: {val_pieza}" if val_pieza.lower() not in ['sí', 'si', '/'] else col_pieza
+                            val_lower = val_pieza.lower()
+                            
+                            # Evaluar si la pieza está disponible o NO
+                            # Si dice "no", "falta", "sin", etc., se marca como no disponible (0)
+                            if val_lower in ['no', 'sin unidad', 'falta', '0', 'falta fijado', 'sin protector'] or 'falta' in val_lower or 'sin' in val_lower:
+                                disponible = 0
+                                estado_texto = f"Faltante / No Disponible ({val_pieza})"
+                            else:
+                                disponible = 1
+                                estado_texto = "Disponible"
+
+                            nombre_pieza = f"{col_pieza}: {val_pieza}" if val_lower not in ['sí', 'si', '/'] else col_pieza
                             cod_pieza = f"PZ-{serie}-{idx_pieza}"
 
-                            # Armar la consulta SQL dinámicamente según la estructura real de la BD
                             if col_cod_pz:
                                 query = f'''INSERT INTO piezas ({col_fk}, nombre, {col_cod_pz}, disponible, estado)
-                                           VALUES (?, ?, ?, 1, 'Disponible')'''
-                                c.execute(query, (serie, nombre_pieza, cod_pieza))
+                                           VALUES (?, ?, ?, ?, ?)'''
+                                c.execute(query, (serie, nombre_pieza, cod_pieza, disponible, estado_texto))
                             else:
                                 query = f'''INSERT INTO piezas ({col_fk}, nombre, disponible, estado)
-                                           VALUES (?, ?, 1, 'Disponible')'''
-                                c.execute(query, (serie, nombre_pieza))
+                                           VALUES (?, ?, ?, ?)'''
+                                c.execute(query, (serie, nombre_pieza, disponible, estado_texto))
 
                             idx_pieza += 1
 
