@@ -51,6 +51,7 @@ def init_db():
             fecha_regreso TEXT,
             estado_solicitud TEXT DEFAULT 'Pendiente',
             fecha_devuelto TEXT,
+            foto_evidencia TEXT,
             fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -60,6 +61,11 @@ def init_db():
 
 # Inicializamos la base de datos al arrancar
 init_db()
+
+# Asegurar que la carpeta de fotos exista al arrancar
+UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'evidencias')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
 # ==========================================
@@ -179,46 +185,22 @@ def enviar_solicitud():
     """
 
 
-# Asegurar que la carpeta de fotos exista al arrancar
-UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'evidencias')
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
 @app.route('/devolver_pieza/<codigo>/<int:pieza_id>', methods=['POST'])
 def devolver_pieza(codigo, pieza_id):
     try:
-        conn = sqlite3.connect('inventario.db')
+        conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
-        
-        # 1. Inspeccionar qué columnas existen en la tabla 'piezas'
-        c.execute("PRAGMA table_info(piezas)")
-        cols_piezas = [col[1] for col in c.fetchall()]
-        
-        # Buscar el nombre de la columna que guarda el código (si existe)
-        col_cod = None
-        for posible in ['codigo', 'codigo_pieza', 'cod_pieza', 'id_pieza']:
-            if posible in cols_piezas:
-                col_cod = posible
-                break
 
-        # 2. Obtener datos de la pieza de forma segura
-        if col_cod:
-            c.execute(f"SELECT nombre, {col_cod} FROM piezas WHERE id = ?", (pieza_id,))
-        else:
-            c.execute("SELECT nombre, nombre FROM piezas WHERE id = ?", (pieza_id,))
-            
-        pieza = c.fetchone()
-        
         ruta_foto_db = None
 
-        # 3. Intentar guardar la foto (comprimida) si la subieron
+        # 1. Guardar foto de evidencia si existe
         if 'foto_evidencia' in request.files:
             foto = request.files['foto_evidencia']
             if foto and foto.filename != '':
                 try:
                     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
                     ext = os.path.splitext(foto.filename)[1]
-                    nombre_foto = secure_filename(f"dev_{codigo}_{pieza_id}{ext}")
+                    nombre_foto = secure_filename(f"dev_{codigo}_{pieza_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{ext}")
                     path_completo = os.path.join(app.config['UPLOAD_FOLDER'], nombre_foto)
                     
                     foto.save(path_completo)
@@ -226,20 +208,27 @@ def devolver_pieza(codigo, pieza_id):
                 except Exception as img_err:
                     print(f"Error al guardar imagen: {img_err}")
 
-        # 4. Restablecer el estado de la pieza a Disponible
+        # 2. Restablecer la pieza a disponible
         c.execute("UPDATE piezas SET disponible = 1, estado = 'Disponible' WHERE id = ?", (pieza_id,))
         
-        # 5. Registrar en el historial
-        if pieza:
-            nom_pieza, cod_pieza = pieza[0], pieza[1]
-            detalle = f"Devuelto a equipo {codigo}"
-            if ruta_foto_db:
-                detalle += f" (Foto: {ruta_foto_db})"
-                
-            c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='registros'")
-            if c.fetchone():
-                c.execute("""INSERT INTO registros (codigo_pieza, tecnico, accion) 
-                             VALUES (?, ?, ?)""", (cod_pieza or nom_pieza, 'Sistema/Taller', detalle))
+        # 3. Actualizar el registro del historial a 'Devuelto' con la foto y la fecha
+        fecha_ahora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        c.execute("""UPDATE historial 
+                     SET estado_solicitud = 'Devuelto', 
+                         fecha_devuelto = ?, 
+                         foto_evidencia = ? 
+                     WHERE pieza_id = ? AND estado_solicitud = 'Pendiente'""", 
+                  (fecha_ahora, ruta_foto_db, pieza_id))
+        
+        # Si por alguna razón no había solicitud pendiente previa, insertar un registro directo
+        if c.rowcount == 0:
+            c.execute("SELECT nombre FROM piezas WHERE id = ?", (pieza_id,))
+            pz = c.fetchone()
+            pz_nom = pz[0] if pz else "Pieza"
+            c.execute("""INSERT INTO historial (maquina_codigo, pieza_id, pieza_nombre, tecnico, motivo, estado_solicitud, fecha_devuelto, foto_evidencia)
+                         VALUES (?, ?, ?, ?, ?, 'Devuelto', ?, ?)""",
+                      (codigo, pieza_id, pz_nom, 'Sistema/Taller', 'Devolución directa', fecha_ahora, ruta_foto_db))
         
         conn.commit()
         conn.close()
@@ -249,22 +238,54 @@ def devolver_pieza(codigo, pieza_id):
         return f"Error al procesar devolución: {str(e)}", 500
 
     return redirect(f"/maquina/{codigo}")
-    import pandas as pd
+
+
+# ==========================================
+# RUTAS DE ADMINISTRACIÓN Y HISTORIAL
+# ==========================================
+
+@app.route('/historial')
+@app.route('/registros')
+@app.route('/admin/registros')
+def ver_historial():
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        c = conn.cursor()
+        
+        # Asegurarse de que exista la columna foto_evidencia por si la BD es antigua
+        try:
+            c.execute("ALTER TABLE historial ADD COLUMN foto_evidencia TEXT")
+        except sqlite3.OperationalError:
+            pass # Ya existe la columna
+
+        c.execute("""SELECT id, maquina_codigo, pieza_nombre, tecnico, motivo, 
+                            fecha_regreso, estado_solicitud, fecha_devuelto, foto_evidencia, fecha_registro 
+                     FROM historial 
+                     ORDER BY id DESC""")
+        registros = c.fetchall()
+        
+        conn.close()
+        
+        # Intenta renderizar registros.html o historial.html según cual exista
+        try:
+            return render_template('historial.html', registros=registros)
+        except:
+            return render_template('registros.html', registros=registros)
+            
+    except Exception as e:
+        print(f"Error al cargar historial: {e}")
+        return f"Error al cargar el historial: {str(e)}", 500
+
 
 @app.route('/admin/limpiar_bd', methods=['POST'])
 def limpiar_bd():
     try:
-        conn = sqlite3.connect('inventario.db')
+        conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
         
-        # Borrar registros de piezas y máquinas de forma segura
         c.execute("DELETE FROM piezas")
         c.execute("DELETE FROM maquinas")
-        
-        # Borrar la tabla registros solo si existe
-        c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='registros'")
-        if c.fetchone():
-            c.execute("DELETE FROM registros")
+        c.execute("DELETE FROM historial")
             
         conn.commit()
         conn.close()
@@ -272,7 +293,6 @@ def limpiar_bd():
     except Exception as e:
         return f"Error al limpiar la base de datos: {str(e)}", 500
 
-import pandas as pd
 
 @app.route('/admin/cargar_excel', methods=['POST'])
 def cargar_excel():
@@ -288,27 +308,24 @@ def cargar_excel():
 
         df.columns = [str(c).strip() for c in df.columns]
 
-        conn = sqlite3.connect('inventario.db')
+        conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
 
         c.execute("PRAGMA table_info(piezas)")
         cols_bd = [col[1] for col in c.fetchall()]
 
-        col_fk = 'codigo_maquina'
-        if 'maquina_codigo' in cols_bd:
-            col_fk = 'maquina_codigo'
-        elif 'maquina' in cols_bd:
-            col_fk = 'maquina'
+        col_fk = 'maquina_codigo'
+        if 'codigo_maquina' in cols_bd:
+            col_fk = 'codigo_maquina'
 
         col_cod_pz = None
-        for posible in ['codigo', 'codigo_pieza', 'cod_pieza', 'id_pieza']:
+        for posible in ['codigo_pieza', 'codigo', 'cod_pieza']:
             if posible in cols_bd:
                 col_cod_pz = posible
                 break
 
         cols_ignorar = ['Serie del equipo', 'Modelo', 'Observaciones', 'Fecha', 'Técnico', 'Entregado por', 'Firma', 'RENTADA']
 
-        insertados = 0
         for _, row in df.iterrows():
             serie = str(row.get('Serie del equipo', '')).strip()
             modelo = str(row.get('Modelo', '')).strip()
@@ -317,8 +334,8 @@ def cargar_excel():
                 ubicacion = 'Taller'
 
             if serie and serie.lower() != 'nan':
-                c.execute('''INSERT OR IGNORE INTO maquinas (codigo, marca, modelo, numero_serie, ubicacion)
-                             VALUES (?, ?, ?, ?, ?)''', (serie, 'Kyocera', modelo, serie, ubicacion))
+                c.execute('''INSERT OR IGNORE INTO maquinas (codigo, marca, modelo, numero_serie, ubicacion, estado)
+                             VALUES (?, ?, ?, ?, ?, 'Para repuestos')''', (serie, 'Kyocera', modelo, serie, ubicacion))
                 
                 idx_pieza = 1
                 for col_pieza in df.columns:
@@ -328,7 +345,6 @@ def cargar_excel():
                         if val_pieza and val_pieza.lower() != 'nan':
                             val_lower = val_pieza.lower().strip()
                             
-                            # Palabras que indican que NO hay pieza
                             palabras_no = ['no', 'sin unidad', 'falta', '0', 'falta fijado', 'sin protector', 'sin']
                             
                             if val_lower in palabras_no or any(p in val_lower for p in ['falta', 'sin', 'no ']):
@@ -338,7 +354,6 @@ def cargar_excel():
                                 disponible = 1
                                 estado_texto = "Disponible"
 
-                            # Nombre limpio de la pieza
                             nombre_pieza = col_pieza
                             cod_pieza = f"PZ-{serie}-{idx_pieza}"
 
@@ -353,8 +368,6 @@ def cargar_excel():
 
                             idx_pieza += 1
 
-                insertados += 1
-
         conn.commit()
         conn.close()
 
@@ -362,9 +375,7 @@ def cargar_excel():
 
     except Exception as e:
         return f"Error al procesar el Excel: {str(e)}", 500
-# ==========================================
-# RUTAS DE ADMINISTRACIÓN
-# ==========================================
+
 
 @app.route("/admin/imprimir_qrs")
 def imprimir_qrs():
@@ -384,28 +395,6 @@ def imprimir_qrs():
 
     return render_template("imprimir_qrs.html", maquinas=maquinas_dict, qrs=qrs)
 
-
-@app.route('/historial')
-def ver_registro():
-    try:
-        conn = sqlite3.connect('inventario.db')
-        c = conn.cursor()
-        
-        # Verificar si la tabla de registros existe
-        c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='registros'")
-        if c.fetchone():
-            c.execute("""SELECT id, codigo_pieza, tecnico, accion, fecha 
-                         FROM registros 
-                         ORDER BY id DESC""")
-            registros = c.fetchall()
-        else:
-            registros = []
-            
-        conn.close()
-        return render_template('historial.html', registros=registros)
-    except Exception as e:
-        print(f"Error al cargar historial: {e}")
-        return f"Error al cargar el historial: {str(e)}", 500
 
 @app.route("/admin/exportar_excel")
 def exportar_excel():
