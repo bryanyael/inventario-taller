@@ -385,27 +385,23 @@ def imprimir_qrs():
     return render_template("imprimir_qrs.html", maquinas=maquinas_dict, qrs=qrs)
 
 
-@app.route("/admin/registros")
-def ver_registros():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("SELECT maquina_codigo, pieza_nombre, tecnico, motivo, fecha_regreso, estado_solicitud, fecha_devuelto FROM historial ORDER BY id DESC")
-    rows = cursor.fetchall()
+@app.route('/historial')
+def ver_historial():
+    conn = sqlite3.connect('inventario.db')
+    c = conn.cursor()
+    
+    # Verificar si existe la tabla registros
+    c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='registros'")
+    if c.fetchone():
+        c.execute("""SELECT id, codigo_pieza, tecnico, accion, fecha 
+                     FROM registros 
+                     ORDER BY fecha DESC""")
+        registros = c.fetchall()
+    else:
+        registros = []
+        
     conn.close()
-
-    registros = []
-    for r in rows:
-        registros.append({
-            "maquina": r[0],
-            "pieza": r[1],
-            "tecnico": r[2],
-            "motivo": r[3],
-            "fecha_regreso": r[4],
-            "estado": r[5],
-            "fecha_devuelto": r[6] if r[6] else "-"
-        })
-
-    return render_template("registros.html", registros=registros)
+    return render_template('historial.html', registros=registros)
 
 
 @app.route("/admin/exportar_excel")
