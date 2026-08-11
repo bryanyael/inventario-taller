@@ -5,6 +5,7 @@ from io import StringIO
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, Response
 import pandas as pd
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
@@ -178,26 +179,47 @@ def enviar_solicitud():
     """
 
 
-@app.route("/devolver_pieza/<codigo>/<int:pieza_id>", methods=["POST"])
+# Carpeta donde se guardarán las fotos de evidencia
+UPLOAD_FOLDER = 'static/evidencias'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+@app.route('/devolver_pieza/<codigo>/<int:pieza_id>', methods=['POST'])
 def devolver_pieza(codigo, pieza_id):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
+    conn = sqlite3.connect('inventario.db')
+    c = conn.cursor()
+    
+    # 1. Obtener datos de la pieza
+    c.execute("SELECT nombre, codigo FROM piezas WHERE id = ?", (pieza_id,))
+    pieza = c.fetchone()
+    
+    # 2. Procesar la foto subida
+    foto = request.files.get('foto_evidencia')
+    ruta_foto = None
+    
+    if foto and foto.filename != '':
+        nombre_foto = secure_filename(f"devolucion_{codigo}_{pieza_id}_{foto.filename}")
+        ruta_foto = os.path.join(app.config['UPLOAD_FOLDER'], nombre_foto)
+        foto.save(ruta_foto)
 
-    cursor.execute("UPDATE piezas SET disponible = 1, estado = 'Bueno' WHERE id = ?", (pieza_id,))
-
-    fecha_actual = datetime.now().strftime("%d/%m/%Y %H:%M")
-    cursor.execute('''
-        UPDATE historial 
-        SET estado_solicitud = 'Devuelto', fecha_devuelto = ? 
-        WHERE id = (
-            SELECT id FROM historial 
-            WHERE pieza_id = ? 
-            ORDER BY id DESC LIMIT 1
-        )
-    ''', (fecha_actual, pieza_id))
-
-    conn.commit()
+    if pieza:
+        nom_pieza, cod_pieza = pieza[0], pieza[1]
+        
+        # 3. Restablecer estado a Disponible
+        c.execute("UPDATE piezas SET disponible = 1, estado = 'Disponible' WHERE id = ?", (pieza_id,))
+        
+        # 4. Registrar devolución e incluir la ruta de la foto en la bitácora
+        detalle_accion = f"Devuelto a equipo {codigo}"
+        if ruta_foto:
+            detalle_accion += f" (Evidencia: /{ruta_foto})"
+            
+        c.execute("""INSERT INTO registros (codigo_pieza, tecnico, accion) 
+                     VALUES (?, ?, ?)""", (cod_pieza or nom_pieza, 'Sistema/Taller', detalle_accion))
+        
+        conn.commit()
     conn.close()
+    
+    return redirect(f"/maquina/{codigo}")
 
     return redirect(url_for('maquina', codigo=codigo))
     import pandas as pd
