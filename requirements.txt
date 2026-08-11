@@ -1,2 +1,7 @@
+
 Flask
 gunicorn
+qrcode
+pillow
+pandas
+openpyxl
