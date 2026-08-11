@@ -207,9 +207,16 @@ def limpiar_bd():
     try:
         conn = sqlite3.connect('inventario.db')
         c = conn.cursor()
+        
+        # Borrar registros de piezas y máquinas de forma segura
         c.execute("DELETE FROM piezas")
         c.execute("DELETE FROM maquinas")
-        c.execute("DELETE FROM registros")
+        
+        # Borrar la tabla registros solo si existe
+        c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='registros'")
+        if c.fetchone():
+            c.execute("DELETE FROM registros")
+            
         conn.commit()
         conn.close()
         return redirect(url_for('inicio'))
