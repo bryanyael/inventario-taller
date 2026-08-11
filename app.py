@@ -386,7 +386,7 @@ def imprimir_qrs():
 
 
 @app.route('/historial')
-def historial():
+def ver_registro():
     try:
         conn = sqlite3.connect('inventario.db')
         c = conn.cursor()
