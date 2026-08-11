@@ -53,6 +53,14 @@
                         <a href="/admin/registros" class="btn btn-dark btn-action">
                             <i class="bi bi-journal-text me-2"></i>Historial de Movimientos
                         </a>
+                        <!-- Botón para Vaciar Inventario -->
+                        <div class="mt-4 pt-3 border-top text-end">
+                            <form action="/admin/limpiar_bd" method="POST" onsubmit="return confirm('¿Estás segura de que deseas borrar TODAS las máquinas y piezas?');">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                    <i class="bi bi-trash me-1"></i> Vaciar/Borrar Todo el Inventario
+                                </button>
+                            </form>
+                        </div>
                     </div>
 
                     <!-- Sección de Carga Masiva desde Excel -->
