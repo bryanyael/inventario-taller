@@ -190,13 +190,28 @@ def devolver_pieza(codigo, pieza_id):
         conn = sqlite3.connect('inventario.db')
         c = conn.cursor()
         
-        # 1. Obtener datos de la pieza
-        c.execute("SELECT nombre, codigo FROM piezas WHERE id = ?", (pieza_id,))
+        # 1. Inspeccionar qué columnas existen en la tabla 'piezas'
+        c.execute("PRAGMA table_info(piezas)")
+        cols_piezas = [col[1] for col in c.fetchall()]
+        
+        # Buscar el nombre de la columna que guarda el código (si existe)
+        col_cod = None
+        for posible in ['codigo', 'codigo_pieza', 'cod_pieza', 'id_pieza']:
+            if posible in cols_piezas:
+                col_cod = posible
+                break
+
+        # 2. Obtener datos de la pieza de forma segura
+        if col_cod:
+            c.execute(f"SELECT nombre, {col_cod} FROM piezas WHERE id = ?", (pieza_id,))
+        else:
+            c.execute("SELECT nombre, nombre FROM piezas WHERE id = ?", (pieza_id,))
+            
         pieza = c.fetchone()
         
         ruta_foto_db = None
 
-        # 2. Intentar guardar la foto si la enviaron
+        # 3. Intentar guardar la foto (comprimida) si la subieron
         if 'foto_evidencia' in request.files:
             foto = request.files['foto_evidencia']
             if foto and foto.filename != '':
@@ -211,17 +226,16 @@ def devolver_pieza(codigo, pieza_id):
                 except Exception as img_err:
                     print(f"Error al guardar imagen: {img_err}")
 
-        # 3. Actualizar la pieza a Disponible
+        # 4. Restablecer el estado de la pieza a Disponible
         c.execute("UPDATE piezas SET disponible = 1, estado = 'Disponible' WHERE id = ?", (pieza_id,))
         
-        # 4. Registrar en historial
+        # 5. Registrar en el historial
         if pieza:
             nom_pieza, cod_pieza = pieza[0], pieza[1]
             detalle = f"Devuelto a equipo {codigo}"
             if ruta_foto_db:
                 detalle += f" (Foto: {ruta_foto_db})"
                 
-            # Verificar si existe la tabla registros antes de insertar
             c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='registros'")
             if c.fetchone():
                 c.execute("""INSERT INTO registros (codigo_pieza, tecnico, accion) 
