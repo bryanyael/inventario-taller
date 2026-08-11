@@ -386,23 +386,26 @@ def imprimir_qrs():
 
 
 @app.route('/historial')
-def ver_historial():
-    conn = sqlite3.connect('inventario.db')
-    c = conn.cursor()
-    
-    # Verificar si existe la tabla registros
-    c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='registros'")
-    if c.fetchone():
-        c.execute("""SELECT id, codigo_pieza, tecnico, accion, fecha 
-                     FROM registros 
-                     ORDER BY fecha DESC""")
-        registros = c.fetchall()
-    else:
-        registros = []
+def historial():
+    try:
+        conn = sqlite3.connect('inventario.db')
+        c = conn.cursor()
         
-    conn.close()
-    return render_template('historial.html', registros=registros)
-
+        # Verificar si la tabla de registros existe
+        c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='registros'")
+        if c.fetchone():
+            c.execute("""SELECT id, codigo_pieza, tecnico, accion, fecha 
+                         FROM registros 
+                         ORDER BY id DESC""")
+            registros = c.fetchall()
+        else:
+            registros = []
+            
+        conn.close()
+        return render_template('historial.html', registros=registros)
+    except Exception as e:
+        print(f"Error al cargar historial: {e}")
+        return f"Error al cargar el historial: {str(e)}", 500
 
 @app.route("/admin/exportar_excel")
 def exportar_excel():
