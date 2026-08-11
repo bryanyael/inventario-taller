@@ -209,40 +209,50 @@ def cargar_excel():
         return "No seleccionaste ningún archivo", 400
 
     try:
-        # Lee el archivo si es .xlsx o .csv
         if file.filename.endswith('.csv'):
             df = pd.read_csv(file)
         else:
             df = pd.read_excel(file)
 
-        # Normalizar nombres de columnas a minúsculas y sin espacios extra
-        df.columns = [str(c).strip().lower() for c in df.columns]
+        # Limpiar nombres de columnas
+        df.columns = [str(c).strip() for c in df.columns]
 
         conn = sqlite3.connect('inventario.db')
         c = conn.cursor()
 
+        insertados = 0
         for _, row in df.iterrows():
-            cod_maq = str(row.get('codigo_maquina', '')).strip()
-            marca = str(row.get('marca', '')).strip()
-            modelo = str(row.get('modelo', '')).strip()
-            num_serie = str(row.get('numero_serie', '')).strip()
-            ubicacion = str(row.get('ubicacion', '')).strip()
+            # Obtener Serie y Modelo
+            serie = str(row.get('SERIE DEL EQUIPO', '')).strip()
+            modelo = str(row.get('MODELO', '')).strip()
 
-            nom_pieza = str(row.get('nombre_pieza', '')).strip()
-            cod_pieza = str(row.get('codigo_pieza', '')).strip()
-
-            if cod_maq:
-                # 1. Insertar máquina si no existe
+            if serie and serie.lower() != 'nan':
+                # 1. Registrar o actualizar la máquina
                 c.execute('''INSERT OR IGNORE INTO maquinas (codigo, marca, modelo, numero_serie, ubicacion)
-                             VALUES (?, ?, ?, ?, ?)''', (cod_maq, marca, modelo, num_serie, ubicacion))
+                             VALUES (?, ?, ?, ?, ?)''', (serie, 'Taller', modelo, serie, 'Taller'))
                 
-                # 2. Insertar pieza si viene especificada
-                if nom_pieza and cod_pieza:
-                    c.execute('''INSERT INTO piezas (codigo_maquina, nombre, codigo, disponible, estado)
-                                 VALUES (?, ?, ?, 1, 'Disponible')''', (cod_maq, nom_pieza, cod_pieza))
+                # 2. Recorrer el resto de columnas como piezas
+                columnas_piezas = [col for col in df.columns if col not in ['SERIE DEL EQUIPO', 'MODELO', 'Columna2']]
+                
+                for idx, col_pieza in enumerate(columnas_piezas):
+                    val_pieza = str(row.get(col_pieza, '')).strip()
+                    
+                    # Si la celda tiene contenido o no está vacía
+                    if val_pieza and val_pieza.lower() != 'nan':
+                        nombre_final = f"{col_pieza} ({val_pieza})" if val_pieza.lower() not in ['si', 'x', '1', 'ok'] else col_pieza
+                        cod_pieza = f"PZ-{serie}-{idx+1}"
+
+                        c.execute('''INSERT INTO piezas (codigo_maquina, nombre, codigo, disponible, estado)
+                                     VALUES (?, ?, ?, 1, 'Disponible')''', (serie, nombre_final, cod_pieza))
+                
+                insertados += 1
 
         conn.commit()
         conn.close()
+
+        if insertados == 0:
+            return "<h1>⚠️ El archivo no tenía filas con datos</h1><p>Asegúrate de llenar datos debajo de la fila de encabezados.</p><br><a href='/'>Volver</a>"
+
         return redirect(url_for('inicio'))
 
     except Exception as e:
