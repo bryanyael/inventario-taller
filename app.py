@@ -242,7 +242,6 @@ def cargar_excel():
         conn = sqlite3.connect('inventario.db')
         c = conn.cursor()
 
-        # Obtener columnas de la tabla piezas
         c.execute("PRAGMA table_info(piezas)")
         cols_bd = [col[1] for col in c.fetchall()]
 
@@ -269,28 +268,29 @@ def cargar_excel():
                 ubicacion = 'Taller'
 
             if serie and serie.lower() != 'nan':
-                # 1. Insertar máquina
                 c.execute('''INSERT OR IGNORE INTO maquinas (codigo, marca, modelo, numero_serie, ubicacion)
                              VALUES (?, ?, ?, ?, ?)''', (serie, 'Kyocera', modelo, serie, ubicacion))
                 
-                # 2. Insertar piezas
                 idx_pieza = 1
                 for col_pieza in df.columns:
                     if col_pieza not in cols_ignorar:
                         val_pieza = str(row.get(col_pieza, '')).strip()
                         
                         if val_pieza and val_pieza.lower() != 'nan':
-                            val_lower = val_pieza.lower()
+                            val_lower = val_pieza.lower().strip()
                             
-                            # Si no está disponible la pieza, se le asigna "No hay existencia"
-                            if val_lower in ['no', 'sin unidad', 'falta', '0', 'falta fijado', 'sin protector'] or 'falta' in val_lower or 'sin' in val_lower:
+                            # Palabras que indican que NO hay pieza
+                            palabras_no = ['no', 'sin unidad', 'falta', '0', 'falta fijado', 'sin protector', 'sin']
+                            
+                            if val_lower in palabras_no or any(p in val_lower for p in ['falta', 'sin', 'no ']):
                                 disponible = 0
                                 estado_texto = "No hay existencia"
                             else:
                                 disponible = 1
                                 estado_texto = "Disponible"
 
-                            nombre_pieza = f"{col_pieza}: {val_pieza}" if val_lower not in ['sí', 'si', '/'] else col_pieza
+                            # Nombre limpio de la pieza
+                            nombre_pieza = col_pieza
                             cod_pieza = f"PZ-{serie}-{idx_pieza}"
 
                             if col_cod_pz:
