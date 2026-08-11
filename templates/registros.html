@@ -1,93 +1,70 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Historial de Registros</title>
+    <title>Historial de Movimientos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f6f8; }
-        .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
-        .btn-excel { background: #28a745; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; }
-        .search-box { padding: 8px 12px; width: 250px; border-radius: 5px; border: 1px solid #ccc; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-        th { background-color: #007bff; color: white; }
-        tr:nth-child(even) { background-color: #f9f9f9; }
-        .badge { padding: 5px 10px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; color: white; display: inline-block; }
-        .badge-pendiente { background-color: #ffc107; color: #333; }
-        .badge-devuelto { background-color: #28a745; }
+        body { background-color: #f8f9fa; }
+        .card-custom { border: none; border-radius: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
     </style>
 </head>
 <body>
-
-    <div class="container">
-        <div class="header-actions">
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h1 style="margin:0;">📋 Historial de Piezas</h1>
-                <p style="margin:5px 0 0 0; color:#666;">Movimientos registrados en taller.</p>
+                <h3 class="fw-bold mb-0">📋 Historial de Movimientos</h3>
+                <p class="text-muted small mb-0">Listado de piezas extraídas y estado de retorno.</p>
             </div>
-            <a href="/admin/exportar_excel" class="btn-excel">📊 Descargar en Excel</a>
+            <div>
+                <a href="/admin/exportar_excel" class="btn btn-outline-success btn-sm rounded-pill me-2">
+                    <i class="bi bi-file-earmark-excel me-1"></i> Exportar CSV
+                </a>
+                <a href="/" class="btn btn-secondary btn-sm rounded-pill"><i class="bi bi-house"></i> Inicio</a>
+            </div>
         </div>
 
-        <input type="text" id="buscador" class="search-box" onkeyup="filtrarTabla()" placeholder="🔍 Buscar técnico, pieza o máquina...">
-
-        {% if registros %}
-            <table id="tablaRegistros">
-                <thead>
-                    <tr>
-                        <th>Máquina</th>
-                        <th>Pieza</th>
-                        <th>Técnico</th>
-                        <th>Motivo</th>
-                        <th>Est. Regreso</th>
-                        <th>Estado</th>
-                        <th>Devuelto El</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for reg in registros %}
+        <div class="card card-custom bg-white overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
                         <tr>
-                            <td><strong>{{ reg.maquina }}</strong></td>
-                            <td>{{ reg.pieza }}</td>
-                            <td>{{ reg.tecnico }}</td>
-                            <td>{{ reg.motivo }}</td>
-                            <td>{{ reg.fecha_regreso }}</td>
+                            <th>Máquina</th>
+                            <th>Pieza</th>
+                            <th>Técnico</th>
+                            <th>Motivo</th>
+                            <th>Regreso Est.</th>
+                            <th>Estado</th>
+                            <th>Devuelto el</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in registros %}
+                        <tr>
+                            <td><span class="badge bg-primary">{{ r.maquina }}</span></td>
+                            <td class="fw-bold">{{ r.pieza }}</td>
+                            <td>{{ r.tecnico }}</td>
+                            <td class="text-muted small">{{ r.motivo }}</td>
+                            <td>{{ r.fecha_regreso }}</td>
                             <td>
-                                {% if reg.estado == 'Devuelto' %}
-                                    <span class="badge badge-devuelto">DEVUELTO</span>
+                                {% if r.estado == 'Devuelto' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle">Devuelto</span>
                                 {% else %}
-                                    <span class="badge badge-pendiente">EN USO</span>
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">En uso</span>
                                 {% endif %}
                             </td>
-                            <td>{{ reg.fecha_devuelto }}</td>
+                            <td class="small text-muted">{{ r.fecha_devuelto }}</td>
                         </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <p style="text-align:center; color:#777; margin-top:30px;">Aún no se ha registrado ningún retiro.</p>
-        {% endif %}
-
-        <br><br>
-        <a href="/" style="color: #007bff; text-decoration: none;">← Volver a la portada</a>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-muted">No hay registros aún.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
-
-    <script>
-        function filtrarTabla() {
-            let input = document.getElementById("buscador").value.toUpperCase();
-            let rows = document.getElementById("tablaRegistros").getElementsByTagName("tr");
-
-            for (let i = 1; i < rows.length; i++) {
-                let text = rows[i].textContent || rows[i].innerText;
-                if (text.toUpperCase().indexOf(input) > -1) {
-                    rows[i].style.display = "";
-                } else {
-                    rows[i].style.display = "none";
-                }
-            }
-        }
-    </script>
-
 </body>
 </html>
