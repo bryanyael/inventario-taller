@@ -47,7 +47,6 @@
                     <div>
                         <h6 class="fw-bold mb-1 text-dark">{{ p.nombre }}</h6>
                         <span class="badge bg-light text-secondary border me-2">{{ p.codigo }}</span>
-                        <small class="text-muted d-block mt-1">{{ p.estado }}</small>
                     </div>
                     <div>
                         {% if p.disponible %}
@@ -56,7 +55,12 @@
                                 Retirar <i class="bi bi-arrow-right short"></i>
                             </a>
                         {% else %}
-                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle me-2">Prestada</span>
+                            <!-- Mostrar el estado real (Ejemplo: "No hay existencia" o "Prestada a...") -->
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle me-2">
+                                {{ p.estado if p.estado else "No hay existencia" }}
+                            </span>
+                            
+                            <!-- Botón para devolver (si aplica) -->
                             <form action="/devolver_pieza/{{ codigo }}/{{ p.id }}" method="POST" class="d-inline">
                                 <button type="submit" class="btn btn-warning btn-sm rounded-pill px-3 text-dark fw-semibold">
                                     Devolver
