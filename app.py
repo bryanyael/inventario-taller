@@ -223,6 +223,8 @@ def limpiar_bd():
     except Exception as e:
         return f"Error al limpiar la base de datos: {str(e)}", 500
 
+import pandas as pd
+
 @app.route('/admin/cargar_excel', methods=['POST'])
 def cargar_excel():
     file = request.files.get('archivo_excel')
@@ -280,11 +282,10 @@ def cargar_excel():
                         if val_pieza and val_pieza.lower() != 'nan':
                             val_lower = val_pieza.lower()
                             
-                            # Evaluar si la pieza está disponible o NO
-                            # Si dice "no", "falta", "sin", etc., se marca como no disponible (0)
+                            # Si no está disponible la pieza, se le asigna "No hay existencia"
                             if val_lower in ['no', 'sin unidad', 'falta', '0', 'falta fijado', 'sin protector'] or 'falta' in val_lower or 'sin' in val_lower:
                                 disponible = 0
-                                estado_texto = f"Faltante / No Disponible ({val_pieza})"
+                                estado_texto = "No hay existencia"
                             else:
                                 disponible = 1
                                 estado_texto = "Disponible"
