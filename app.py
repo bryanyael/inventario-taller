@@ -213,39 +213,53 @@ def solicitar(codigo, pieza_id):
     return render_template("solicitud.html", maquina=maquina_info, codigo=codigo, pieza=pieza_info)
 
 # Módulos de piezas sueltas
-@app.route('/piezas/tomar/<int:id_pieza>', methods=['POST'])
-def tomar_pieza_suelta(id_pieza):
-    cantidad_a_tomar = int(request.form.get('cantidad', 1))
-    
+
+@app.route('/piezas/tomar/<codigo>', methods=['POST'])
+def tomar_pieza_suelta(codigo):
+    tecnico = request.form.get('tecnico', 'Taller')
+    motivo = request.form.get('motivo', 'Uso en taller / campo')
+    try:
+        cantidad_tomada = int(request.form.get('cantidad', 1))
+    except (ValueError, TypeError):
+        cantidad_tomada = 1
+
     conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
-    # Imprimimos las columnas reales que tiene tu tabla en SQLite
-    c.execute("PRAGMA table_info(piezas_sueltas);")
-    print("COLUMNAS DE LA TABLA:", c.fetchall())
-
-    c.execute("SELECT * FROM piezas_sueltas WHERE id = ?", (id_pieza,))
+    # Buscar la pieza por código o ID
+    c.execute("SELECT id, nombre, COALESCE(stock, cantidad, 0) FROM piezas_sueltas WHERE codigo = ? OR id = ?", (codigo, codigo))
     pieza = c.fetchone()
-    
+
     if pieza:
-        print("PIEZA ENCONTRADA:", dict(pieza))
-        # Forzamos la actualización directa usando los nombres más comunes en SQLite
-        try:
-            c.execute("UPDATE piezas_sueltas SET stock = stock - ? WHERE id = ?", (cantidad_a_tomar, id_pieza))
-            conn.commit()
-            print("Stock actualizado usando 'stock - ?'")
-        except Exception as e:
-            print("Error con 'stock':", e)
+        pieza_id, nombre_pieza, stock_actual = pieza[0], pieza[1], pieza[2]
+
+        if stock_actual >= cantidad_tomada:
+            nuevo_stock = stock_actual - cantidad_tomada
+            
             try:
-                c.execute("UPDATE piezas_sueltas SET cantidad = cantidad - ? WHERE id = ?", (cantidad_a_tomar, id_pieza))
-                conn.commit()
-                print("Stock actualizado usando 'cantidad - ?'")
-            except Exception as e2:
-                print("Error con 'cantidad':", e2)
+                c.execute("UPDATE piezas_sueltas SET stock = ? WHERE id = ?", (nuevo_stock, pieza_id))
+            except sqlite3.OperationalError:
+                c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
+
+            fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            motivo_completo = f"{motivo} (Cantidad: {cantidad_tomada})"
+            
+            try:
+                c.execute("""INSERT INTO historial 
+                             (maquina_codigo, pieza_id, tecnico, motivo, estado_solicitud, fecha_registro)
+                             VALUES (?, ?, ?, ?, 'Entregado', ?)""",
+                          ('REPUESTO-SUELTO', pieza_id, tecnico, motivo_completo, fecha_actual))
+            except sqlite3.OperationalError:
+                c.execute("""INSERT INTO historial 
+                             (maquina_codigo, pieza_id, tecnico, motivo, estado_solicitud, fecha)
+                             VALUES (?, ?, ?, ?, 'Entregado', ?)""",
+                          ('REPUESTO-SUELTO', pieza_id, tecnico, motivo_completo, fecha_actual))
+
+            conn.commit()
 
     conn.close()
-    return redirect(url_for('piezas_sueltas'))
+    return redirect('/piezas_sueltas')
+
 @app.route('/maquina/rentar/<codigo>', methods=['POST'])
 def rentar_maquina(codigo):
     destino = request.form.get('destino')
@@ -396,18 +410,16 @@ def piezas_sueltas():
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
-    # Traemos únicamente las piezas que tienen stock mayor a 0 para que se oculten automáticamente al acabarse
+    # Solo seleccionamos las piezas que tengan stock disponible mayor a 0
     try:
         c.execute("SELECT * FROM piezas_sueltas WHERE stock > 0 ORDER BY id DESC")
     except sqlite3.OperationalError:
-        try:
-            c.execute("SELECT * FROM piezas_sueltas WHERE cantidad > 0 ORDER BY id DESC")
-        except sqlite3.OperationalError:
-            c.execute("SELECT * FROM piezas_sueltas ORDER BY id DESC")
-            
+        c.execute("SELECT * FROM piezas_sueltas WHERE cantidad > 0 ORDER BY id DESC")
+        
     piezas = c.fetchall()
     conn.close()
     return render_template('piezas_sueltas.html', piezas=piezas)
+
 
 
 @app.route('/admin/agregar_pieza_suelta', methods=['POST'])
