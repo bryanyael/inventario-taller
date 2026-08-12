@@ -262,12 +262,21 @@ def tomar_pieza_suelta(codigo):
             nuevo_stock = stock_actual - 1
             c.execute("UPDATE piezas_sueltas SET stock = ? WHERE id = ?", (nuevo_stock, pieza_id))
             
-            # 3. GUARDAR EL REGISTRO EN EL HISTORIAL (Esto era lo que faltaba)
+            # 3. GUARDAR EN EL HISTORIAL (Usando fecha_registro en lugar de fecha_solicitud)
             fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            c.execute("""INSERT INTO historial 
-                         (maquina_codigo, pieza_id, tecnico, motivo, estado_solicitud, fecha_solicitud)
-                         VALUES (?, ?, ?, ?, 'Retirada a Campo', ?)""",
-                      ('REPUESTO-SUELTO', pieza_id, tecnico, motivo, fecha_actual))
+            
+            # Intentamos insertar usando 'fecha_registro'
+            try:
+                c.execute("""INSERT INTO historial 
+                             (maquina_codigo, pieza_id, tecnico, motivo, estado_solicitud, fecha_registro)
+                             VALUES (?, ?, ?, ?, 'Retirada a Campo', ?)""",
+                          ('REPUESTO-SUELTO', pieza_id, tecnico, motivo, fecha_actual))
+            except sqlite3.OperationalError:
+                # Respaldo si tu columna se llama simplemente 'fecha'
+                c.execute("""INSERT INTO historial 
+                             (maquina_codigo, pieza_id, tecnico, motivo, estado_solicitud, fecha)
+                             VALUES (?, ?, ?, ?, 'Retirada a Campo', ?)""",
+                          ('REPUESTO-SUELTO', pieza_id, tecnico, motivo, fecha_actual))
             
             conn.commit()
     
