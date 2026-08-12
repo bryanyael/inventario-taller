@@ -27,51 +27,62 @@
 
         <div class="card card-custom bg-white overflow-hidden">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Máquina</th>
-                            <th>Pieza</th>
-                            <th>Técnico</th>
-                            <th>Motivo</th>
-                            <th>Regreso Est.</th>
-                            <th>Devuelto el</th>
-                            <th>Evidencia</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for r in registros %}
-                        <tr>
-                            <!-- Soporta tanto sintaxis de objeto r.columna como índice r[0] -->
-                            <td><span class="badge bg-primary">{{ r.maquina_codigo if r.maquina_codigo is defined else r[1] }}</span></td>
-                            <td class="fw-bold">{{ r.pieza_nombre if r.pieza_nombre is defined else r[3] }}</td>
-                            <td>{{ r.tecnico if r.tecnico is defined else r[4] }}</td>
-                            <td class="text-muted small">{{ r.motivo if r.motivo is defined else r[5] }}</td>
-                            <td>{{ r.fecha_regreso if r.fecha_regreso is defined else r[6] }}</td>
-                            <td class="small text-muted">
-                                {% set devuelto_val = r.fecha_devuelto if r.fecha_devuelto is defined else r[8] %}
-                                {{ devuelto_val if devuelto_val else '-' }}
-                            </td>
-                            <td>
-                                {% set foto_val = r.foto_evidencia if r.foto_evidencia is defined else r[9] %}
-                                {% if foto_val %}
-                                    <a href="{{ foto_val }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill">
-                                        📸 Ver
+                <table class="table table-hover align-middle">
+    <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Máquina</th>
+            <th>Pieza</th>
+            <th>Técnico</th>
+            <th>Motivo</th>
+            <th>Evidencia</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for reg in historial %}
+        <tr>
+            <td>{{ reg.fecha_registro }}</td>
+            <td><span class="badge bg-secondary">{{ reg.maquina_codigo }}</span></td>
+            <td>{{ reg.pieza_nombre }}</td>
+            <td>{{ reg.tecnico }}</td>
+            <td>{{ reg.motivo }}</td>
+            <td>
+                {% if reg.foto_evidencia %}
+                    <!-- Botón para abrir el Modal de la imagen -->
+                    <button type="button" class="btn btn-sm btn-outline-info rounded-pill" data-bs-toggle="modal" data-bs-target="#modalFoto{{ loop.index }}">
+                        <i class="bi bi-image me-1"></i> Ver Foto
+                    </button>
+
+                    <!-- Modal / Ventana Emergente con la Foto -->
+                    <div class="modal fade" id="modalFoto{{ loop.index }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header bg-dark text-white">
+                                    <h5 class="modal-title">📷 Evidencia - {{ reg.maquina_codigo }}</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body text-center p-3 bg-light">
+                                    <!-- Muestra la imagen desde la carpeta static/uploads/ -->
+                                    <img src="{{ url_for('static', filename='uploads/' + reg.foto_evidencia) }}" class="img-fluid rounded shadow" alt="Foto de Evidencia">
+                                </div>
+                                <div class="modal-footer">
+                                    <a href="{{ url_for('static', filename='uploads/' + reg.foto_evidencia) }}" target="_blank" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-box-arrow-up-right me-1"></i> Abrir en tamaño completo
                                     </a>
-                                {% else %}
-                                    <span class="text-muted small">-</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="7" class="text-center py-4 text-muted">No hay registros aún.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</body>
-</html>
+                                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <span class="text-muted small">Sin foto</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="6" class="text-center py-3 text-muted">No hay registros de historial.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
