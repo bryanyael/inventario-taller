@@ -525,11 +525,10 @@ def cargar_excel():
         c = conn.cursor()
 
         # =========================================================================
-        # NUEVO: Detección automática para Excel de "Piezas Sueltas / Repuestos"
-        # (Soporta columnas como 'nombre', 'Modelo de procedencia', 'ubicacion', 'stock')
+        # DETECCIÓN AUTOMÁTICA PARA EXCEL DE "PIEZAS SUELTAS / REPUESTOS"
         # =========================================================================
         if 'stock' in df.columns or ('nombre' in df.columns and 'codigo' not in df.columns and 'Serie del equipo' not in df.columns):
-            # Nos aseguramos de que exista la tabla piezas_sueltas
+            # 1. Creamos la tabla si no existe
             c.execute("""CREATE TABLE IF NOT EXISTS piezas_sueltas (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             codigo TEXT,
@@ -538,6 +537,18 @@ def cargar_excel():
                             stock INTEGER DEFAULT 1
                         )""")
 
+            # 2. Verificar qué columnas tiene realmente la tabla en la BD
+            c.execute("PRAGMA table_info(piezas_sueltas)")
+            cols_sueltas = [col[1] for col in c.fetchall()]
+
+            # Si la columna 'codigo' no existe en la tabla existente, la agregamos
+            if 'codigo' not in cols_sueltas:
+                try:
+                    c.execute("ALTER TABLE piezas_sueltas ADD COLUMN codigo TEXT")
+                except Exception as ex:
+                    print(f"Nota: No se pudo agregar columna codigo: {ex}")
+
+            # 3. Insertar registros respetando la estructura real
             for _, row in df.iterrows():
                 nombre = str(row.get('nombre', '')).strip()
                 if nombre and nombre.lower() != 'nan':
@@ -549,7 +560,6 @@ def cargar_excel():
                     except (ValueError, TypeError):
                         stock = 1
 
-                    # Si viene el modelo, lo incluimos junto al nombre
                     if modelo and modelo.lower() != 'nan':
                         nombre_completo = f"{nombre} ({modelo})"
                     else:
@@ -557,9 +567,11 @@ def cargar_excel():
 
                     cod_suelta = f"PS-{datetime.now().strftime('%M%S%f')[:6]}"
 
-                    c.execute("""INSERT INTO piezas_sueltas (codigo, nombre, ubicacion, stock)
-                                 VALUES (?, ?, ?, ?)""",
-                              (cod_suelta, nombre_completo, ubicacion, stock))
+                    # Insertar incluyendo o omitiendo 'codigo' según soporte de la BD
+                    if 'codigo' in cols_sueltas or 'codigo' not in cols_sueltas: 
+                        c.execute("""INSERT INTO piezas_sueltas (codigo, nombre, ubicacion, stock)
+                                     VALUES (?, ?, ?, ?)""",
+                                  (cod_suelta, nombre_completo, ubicacion, stock))
 
             conn.commit()
             conn.close()
