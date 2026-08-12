@@ -35,7 +35,6 @@
                             <th>Técnico</th>
                             <th>Motivo</th>
                             <th>Regreso Est.</th>
-                            <th>Estado</th>
                             <th>Devuelto el</th>
                             <th>Evidencia</th>
                         </tr>
@@ -49,14 +48,6 @@
                             <td>{{ r.tecnico if r.tecnico is defined else r[4] }}</td>
                             <td class="text-muted small">{{ r.motivo if r.motivo is defined else r[5] }}</td>
                             <td>{{ r.fecha_regreso if r.fecha_regreso is defined else r[6] }}</td>
-                            <td>
-                                {% set estado_val = r.estado_solicitud if r.estado_solicitud is defined else r[7] %}
-                                {% if estado_val == 'Devuelto' %}
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle">Devuelto</span>
-                                {% else %}
-                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">En uso</span>
-                                {% endif %}
-                            </td>
                             <td class="small text-muted">
                                 {% set devuelto_val = r.fecha_devuelto if r.fecha_devuelto is defined else r[8] %}
                                 {{ devuelto_val if devuelto_val else '-' }}
@@ -74,7 +65,7 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="8" class="text-center py-4 text-muted">No hay registros aún.</td>
+                            <td colspan="7" class="text-center py-4 text-muted">No hay registros aún.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
