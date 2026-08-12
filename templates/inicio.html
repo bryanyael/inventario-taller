@@ -85,9 +85,9 @@
 
                 </div>
 
-                <!-- Sección: Estado de Máquinas y Salida a Rentas -->
+                <!-- Sección: Máquinas Disponibles para Rentar -->
                 <div class="card hero-card bg-white p-4">
-                    <h4 class="fw-bold text-dark mb-3"><i class="bi bi-truck me-2 text-primary"></i>Estado de Máquinas y Rentas</h4>
+                    <h4 class="fw-bold text-dark mb-3"><i class="bi bi-truck me-2 text-primary"></i>Máquinas Listas para Renta</h4>
                     
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
@@ -100,73 +100,75 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                {% set ns = namespace(disponibles=0) %}
                                 {% for m in maquinas %}
-                                <tr>
-                                    <td class="fw-bold"><span class="badge bg-secondary">{{ m.codigo if m.codigo is defined else m[0] }}</span></td>
-                                    <td>
-                                        {{ m.marca if m.marca is defined else m[1] }} 
-                                        <small class="text-muted">({{ m.modelo if m.modelo is defined else m[2] }})</small>
-                                    </td>
-                                    <td>
-                                        {% set estado_actual = m.estado if m.estado is defined else m[5] %}
-                                        {% if estado_actual == 'Rentada' %}
-                                            {% set dest = m.destino if m.destino is defined else m[6] %}
-                                            {% set tec = m.tecnico_cargo if m.tecnico_cargo is defined else m[7] %}
-                                            <span class="badge bg-warning text-dark border border-warning">
-                                                🚚 Rentada a: {{ dest if dest else 'N/A' }} ({{ tec if tec else 'N/A' }})
-                                            </span>
-                                        {% else %}
-                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
-                                                Disponible
-                                            </span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-end">
-                                        {% set estado_actual = m.estado if m.estado is defined else m[5] %}
+                                    {% set estado_actual = m.estado if m.estado is defined else m[5] %}
+                                    
+                                    {# Solo mostramos las máquinas que NO estén rentadas #}
+                                    {% if estado_actual != 'Rentada' %}
+                                        {% set ns.disponibles = ns.disponibles + 1 %}
                                         {% set cod_maquina = m.codigo if m.codigo is defined else m[0] %}
+                                        {% set marca_m = m.marca if m.marca is defined else m[1] %}
+                                        {% set modelo_m = m.modelo if m.modelo is defined else m[2] %}
                                         
-                                        {% if estado_actual != 'Rentada' %}
-                                            <button type="button" class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#modalRentar{{ loop.index }}">
-                                                <i class="bi bi-box-arrow-up-right me-1"></i> Rentar
-                                            </button>
+                                        <tr>
+                                            <td class="fw-bold"><span class="badge bg-secondary">{{ cod_maquina }}</span></td>
+                                            <td>
+                                                {{ marca_m }} 
+                                                <small class="text-muted">({{ modelo_m }})</small>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                    Disponible
+                                                </span>
+                                            </td>
+                                            <td class="text-end">
+                                                <button type="button" class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#modalRentar{{ loop.index }}">
+                                                    <i class="bi bi-box-arrow-up-right me-1"></i> Rentar
+                                                </button>
 
-                                            <!-- Modal para Salida a Renta -->
-                                            <div class="modal fade" id="modalRentar{{ loop.index }}" tabindex="-1" aria-hidden="true">
-                                                <div class="modal-dialog modal-dialog-centered">
-                                                    <div class="modal-content text-start">
-                                                        <div class="modal-header bg-primary text-white">
-                                                            <h5 class="modal-title"><i class="bi bi-truck me-2"></i>Salida a Renta: {{ cod_maquina }}</h5>
-                                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                <!-- Modal para Salida a Renta -->
+                                                <div class="modal fade" id="modalRentar{{ loop.index }}" tabindex="-1" aria-hidden="true">
+                                                    <div class="modal-dialog modal-dialog-centered">
+                                                        <div class="modal-content text-start">
+                                                            <div class="modal-header bg-primary text-white">
+                                                                <h5 class="modal-title"><i class="bi bi-truck me-2"></i>Salida a Renta: {{ cod_maquina }}</h5>
+                                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                            </div>
+                                                            <form action="/maquina/rentar/{{ cod_maquina }}" method="POST">
+                                                                <div class="modal-body">
+                                                                    <div class="mb-3">
+                                                                        <label class="form-label fw-bold">¿A dónde se va? (Cliente / Obra / Destino)</label>
+                                                                        <input type="text" name="destino" class="form-control" placeholder="Ej. Obra Mina Norte / Empresa ABC" required>
+                                                                    </div>
+                                                                    <div class="mb-3">
+                                                                        <label class="form-label fw-bold">Técnico que se la lleva / a cargo</label>
+                                                                        <input type="text" name="tecnico_cargo" class="form-control" placeholder="Nombre del técnico" required>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="modal-footer">
+                                                                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                                                                    <button type="submit" class="btn btn-primary fw-bold">Confirmar Salida</button>
+                                                                </div>
+                                                            </form>
                                                         </div>
-                                                        <form action="/maquina/rentar/{{ cod_maquina }}" method="POST">
-                                                            <div class="modal-body">
-                                                                <div class="mb-3">
-                                                                    <label class="form-label fw-bold">¿A dónde se va? (Cliente / Obra / Destino)</label>
-                                                                    <input type="text" name="destino" class="form-control" placeholder="Ej. Obra Mina Norte / Empresa ABC" required>
-                                                                </div>
-                                                                <div class="mb-3">
-                                                                    <label class="form-label fw-bold">Técnico que se la lleva / a cargo</label>
-                                                                    <input type="text" name="tecnico_cargo" class="form-control" placeholder="Nombre del técnico" required>
-                                                                </div>
-                                                            </div>
-                                                            <div class="modal-footer">
-                                                                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-                                                                <button type="submit" class="btn btn-primary fw-bold">Confirmar Salida</button>
-                                                            </div>
-                                                        </form>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        {% else %}
-                                            <button class="btn btn-sm btn-outline-secondary rounded-pill disabled" disabled>En Renta</button>
-                                        {% endif %}
-                                    </td>
-                                </tr>
+                                            </td>
+                                        </tr>
+                                    {% endif %}
                                 {% else %}
-                                <tr>
-                                    <td colspan="4" class="text-center py-4 text-muted">No hay máquinas registradas en el sistema.</td>
-                                </tr>
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4 text-muted">No hay máquinas registradas en el sistema.</td>
+                                    </tr>
                                 {% endfor %}
+
+                                {# Si hay máquinas registradas pero todas están rentadas #}
+                                {% if maquinas and ns.disponibles == 0 %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4 text-muted">No hay máquinas disponibles para renta en este momento (todas están rentadas).</td>
+                                    </tr>
+                                {% endif %}
                             </tbody>
                         </table>
                     </div>
