@@ -117,26 +117,34 @@ from flask import Flask, render_template, request, session, redirect, url_for
 
 app.secret_key = 'clave_secreta_taller'
 
+from flask import Flask, render_template, request, session, redirect, url_for
+
+app = Flask(__name__)
+# ¡IMPORTANTE! Asegúrate de tener esta línea con una clave secreta para la sesión:
+app.secret_key = 'clave_secreta_taller_inventario' 
+
+
+# --- RUTA PRINCIPAL (Solo debe existir UNA vez) ---
 @app.route('/')
 def inicio():
     # Verificamos si la sesión actual tiene permisos de Admin
     es_admin = session.get('es_admin', False)
+    # Reemplaza 'mis_maquinas' por la variable donde obtienes tus máquinas de la base de datos
     return render_template('inicio.html', maquinas=mis_maquinas, es_admin=es_admin)
 
-# Ruta para que tú entres como Admin cuando lo necesites
+
+# --- RUTAS DE ADMINISTRACIÓN ---
 @app.route('/login_admin', methods=['POST'])
 def login_admin():
     password = request.form.get('password')
-    if password == "1234": # Cambia "1234" por tu contraseña
+    if password == "1234":  # Cambia "1234" por tu contraseña deseada
         session['es_admin'] = True
     return redirect(url_for('inicio'))
 
-# Ruta para salir del modo Admin
 @app.route('/logout_admin')
 def logout_admin():
     session.pop('es_admin', None)
     return redirect(url_for('inicio'))
-
 @app.route("/maquina/<codigo>")
 def maquina(codigo):
     conn = sqlite3.connect(DB_NAME)
