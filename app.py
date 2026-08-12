@@ -212,8 +212,6 @@ def solicitar(codigo, pieza_id):
 
     return render_template("solicitud.html", maquina=maquina_info, codigo=codigo, pieza=pieza_info)
 
-# RUTA 1: Para retirar/usar una pieza suelta del stock
-
 @app.route('/piezas/tomar/<codigo>', methods=['POST'])
 def tomar_pieza_suelta(codigo):
     tecnico = request.form.get('tecnico', 'Taller')
