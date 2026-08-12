@@ -56,11 +56,22 @@ def init_db():
         )
     ''')
 
+    # Asegurar columnas para rentas en la tabla maquinas
+    try:
+        cursor.execute("ALTER TABLE maquinas ADD COLUMN destino TEXT;")
+    except sqlite3.OperationalError:
+        pass  # La columna ya existe
+
+    try:
+        cursor.execute("ALTER TABLE maquinas ADD COLUMN tecnico_cargo TEXT;")
+    except sqlite3.OperationalError:
+        pass  # La columna ya existe
+
     # Garantizamos que la columna foto_evidencia exista si la BD fue creada con una versión antigua
     try:
         cursor.execute("ALTER TABLE historial ADD COLUMN foto_evidencia TEXT;")
     except sqlite3.OperationalError:
-        pass # La columna ya existe
+        pass  # La columna ya existe
 
     conn.commit()
     conn.close()
@@ -150,7 +161,25 @@ def solicitar(codigo, pieza_id):
 
     return render_template("solicitud.html", maquina=maquina_info, codigo=codigo, pieza=pieza_info)
 
+@app.route('/maquina/rentar/<codigo>', methods=['POST'])
+def rentar_maquina(codigo):
+    destino = request.form.get('destino')
+    tecnico = request.form.get('tecnico_cargo')
 
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        
+        # Cambiamos el estado a 'Rentada' y guardamos el destino y el técnico a cargo
+        cursor.execute("""UPDATE maquinas 
+                          SET estado = 'Rentada', destino = ?, tecnico_cargo = ? 
+                          WHERE codigo = ?""", (destino, tecnico, codigo))
+        
+        conn.commit()
+        conn.close()
+        return redirect(url_for('inicio'))
+    except Exception as e:
+        return f"Error al procesar la renta de la máquina: {str(e)}", 500
 @app.route("/enviar_solicitud", methods=["POST"])
 def enviar_solicitud():
     codigo = request.form.get("codigo")
