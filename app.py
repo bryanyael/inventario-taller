@@ -283,6 +283,7 @@ def ver_historial():
     except Exception as e:
         print(f"Error al cargar historial: {e}")
         return f"Error al cargar el historial: {str(e)}", 500
+@app.route('/admin/limpiar_bd', methods=['POST'])
 def limpiar_bd():
     try:
         conn = sqlite3.connect(DB_NAME)
