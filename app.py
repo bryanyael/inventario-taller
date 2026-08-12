@@ -302,6 +302,7 @@ def ver_historial():
         c = conn.cursor()
 
         c.execute("""SELECT id, 
+                            fecha_registro AS fecha_registro,
                             maquina_codigo AS maquina, 
                             pieza_nombre AS pieza, 
                             tecnico, 
@@ -309,7 +310,8 @@ def ver_historial():
                             fecha_regreso AS regreso_est, 
                             estado_solicitud AS estado, 
                             fecha_devuelto AS devuelto_el, 
-                            foto_evidencia AS foto_url 
+                            foto_evidencia AS foto_url,
+                            foto_evidencia AS foto_evidencia
                      FROM historial 
                      ORDER BY id DESC""")
         registros = c.fetchall()
@@ -317,14 +319,13 @@ def ver_historial():
         conn.close()
         
         try:
-            return render_template('historial.html', registros=registros)
+            return render_template('historial.html', registros=registros, historial=registros)
         except:
-            return render_template('registros.html', registros=registros)
+            return render_template('registros.html', registros=registros, historial=registros)
             
     except Exception as e:
         print(f"Error al cargar historial: {e}")
         return f"Error al cargar el historial: {str(e)}", 500
-
 
 @app.route('/admin/limpiar_bd', methods=['POST'])
 def limpiar_bd():
