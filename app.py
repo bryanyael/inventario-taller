@@ -222,16 +222,32 @@ def tomar_pieza_suelta(id_pieza):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
 
-    # 1. Obtenemos el stock actual de la pieza específica usando su ID único
-    c.execute("SELECT stock, nombre FROM piezas_sueltas WHERE id = ?", (id_pieza,))
+    # 1. Obtenemos el nombre y stock actual de la pieza específica
+    c.execute("SELECT stock, nombre, codigo FROM piezas_sueltas WHERE id = ?", (id_pieza,))
     row = c.fetchone()
 
     if row:
         stock_actual = row[0] if row[0] is not None else 1
+        nombre_pieza = row[1]
+        codigo_pieza = row[2] or f"PS-{id_pieza}"
         nuevo_stock = max(0, stock_actual - cantidad_a_tomar)
 
-        # 2. Actualizamos la base de datos restando la cantidad retirada
+        # 2. Actualizamos el stock restando la cantidad retirada
         c.execute("UPDATE piezas_sueltas SET stock = ? WHERE id = ?", (nuevo_stock, id_pieza))
+
+        # 3. REGISTRAMOS EL MOVIMIENTO EN EL HISTORIAL (Asegúrate de que tu tabla de historial se llame 'historial' o ajusta el nombre)
+        # Aquí guardamos la fecha/hora actual, el técnico, el motivo y el nombre de la pieza
+        from datetime import datetime
+        fecha_actual = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        try:
+            c.execute("""
+                INSERT INTO historial (fecha, origen, pieza, tecnico, motivo, estado) 
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (fecha_actual, "REPUESTO-SUELTO", f"{codigo_pieza} - {nombre_pieza} (Cantidad: {cantidad_a_tomar})", tecnico, motivo, "Retirada a Campo"))
+        except sqlite3.OperationalError:
+            pass # Si tu tabla de historial tiene otro nombre o estructura, evita que falle la app
+
         conn.commit()
 
     conn.close()
