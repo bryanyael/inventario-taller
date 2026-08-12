@@ -537,18 +537,25 @@ def cargar_excel():
                             stock INTEGER DEFAULT 1
                         )""")
 
-            # 2. Verificar qué columnas tiene realmente la tabla en la BD
+            # 2. Verificar y agregar automáticamente las columnas que falten en SQLite
             c.execute("PRAGMA table_info(piezas_sueltas)")
-            cols_sueltas = [col[1] for col in c.fetchall()]
+            cols_existentes = [col[1] for col in c.fetchall()]
 
-            # Si la columna 'codigo' no existe en la tabla existente, la agregamos
-            if 'codigo' not in cols_sueltas:
-                try:
-                    c.execute("ALTER TABLE piezas_sueltas ADD COLUMN codigo TEXT")
-                except Exception as ex:
-                    print(f"Nota: No se pudo agregar columna codigo: {ex}")
+            columnas_necesarias = {
+                'codigo': 'TEXT',
+                'nombre': 'TEXT',
+                'ubicacion': 'TEXT',
+                'stock': 'INTEGER DEFAULT 1'
+            }
 
-            # 3. Insertar registros respetando la estructura real
+            for col_nombre, col_tipo in columnas_necesarias.items():
+                if col_nombre not in cols_existentes:
+                    try:
+                        c.execute(f"ALTER TABLE piezas_sueltas ADD COLUMN {col_nombre} {col_tipo}")
+                    except Exception as ex:
+                        print(f"Columna {col_nombre} ya existe o no requirió cambio: {ex}")
+
+            # 3. Insertar registros del Excel
             for _, row in df.iterrows():
                 nombre = str(row.get('nombre', '')).strip()
                 if nombre and nombre.lower() != 'nan':
@@ -567,11 +574,9 @@ def cargar_excel():
 
                     cod_suelta = f"PS-{datetime.now().strftime('%M%S%f')[:6]}"
 
-                    # Insertar incluyendo o omitiendo 'codigo' según soporte de la BD
-                    if 'codigo' in cols_sueltas or 'codigo' not in cols_sueltas: 
-                        c.execute("""INSERT INTO piezas_sueltas (codigo, nombre, ubicacion, stock)
-                                     VALUES (?, ?, ?, ?)""",
-                                  (cod_suelta, nombre_completo, ubicacion, stock))
+                    c.execute("""INSERT INTO piezas_sueltas (codigo, nombre, ubicacion, stock)
+                                 VALUES (?, ?, ?, ?)""",
+                              (cod_suelta, nombre_completo, ubicacion, stock))
 
             conn.commit()
             conn.close()
