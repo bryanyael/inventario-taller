@@ -103,41 +103,32 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # RUTAS PÚBLICAS Y MÁQUINAS
 # ==========================================
 
-@app.route("/")
+app = Flask(__name__)
+app.secret_key = 'clave_secreta_taller_inventario'
+
+# --- RUTA PRINCIPAL (Integrada con SQLite y Admin) ---
 @app.route('/')
 def inicio():
+    # 1. Verificamos si es admin
+    es_admin = session.get('es_admin', False)
+    
+    # 2. Consultamos la base de datos SQLite
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM maquinas")
     maquinas = cursor.fetchall()
     conn.close()
-    return render_template('inicio.html', maquinas=maquinas)
-from flask import Flask, render_template, request, session, redirect, url_for
-
-app.secret_key = 'clave_secreta_taller'
-
-from flask import Flask, render_template, request, session, redirect, url_for
-
-app = Flask(__name__)
-# ¡IMPORTANTE! Asegúrate de tener esta línea con una clave secreta para la sesión:
-app.secret_key = 'clave_secreta_taller_inventario' 
-
-
-# --- RUTA PRINCIPAL (Solo debe existir UNA vez) ---
-@app.route('/')
-def inicio():
-    # Verificamos si la sesión actual tiene permisos de Admin
-    es_admin = session.get('es_admin', False)
-    # Reemplaza 'mis_maquinas' por la variable donde obtienes tus máquinas de la base de datos
-    return render_template('inicio.html', maquinas=mis_maquinas, es_admin=es_admin)
+    
+    # 3. Enviamos los datos al HTML
+    return render_template('inicio.html', maquinas=maquinas, es_admin=es_admin)
 
 
 # --- RUTAS DE ADMINISTRACIÓN ---
 @app.route('/login_admin', methods=['POST'])
 def login_admin():
     password = request.form.get('password')
-    if password == "1234":  # Cambia "1234" por tu contraseña deseada
+    if password == "1234":  # Tu contraseña para entrar
         session['es_admin'] = True
     return redirect(url_for('inicio'))
 
