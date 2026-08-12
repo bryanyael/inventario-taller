@@ -2,99 +2,171 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Historial de Movimientos</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial de Movimientos - Taller</title>
+    <!-- Bootstrap 5 CSS e Iconos -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
     <style>
-        body { background-color: #f8f9fa; }
-        .card-custom { border: none; border-radius: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        body { 
+            background-color: #f4f6f9; 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+        }
+        .main-card {
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+        }
+        .table thead th {
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.8px;
+            color: #6c757d;
+            border-bottom: 2px solid #eef2f7;
+            padding-y: 12px;
+        }
+        .table tbody td {
+            padding: 14px 12px;
+            vertical-align: middle;
+        }
+        .badge-code {
+            font-family: monospace;
+            font-size: 0.85rem;
+            padding: 5px 10px;
+            border-radius: 6px;
+        }
+        .btn-custom-action {
+            border-radius: 8px;
+            font-weight: 500;
+            padding: 6px 14px;
+        }
     </style>
 </head>
 <body>
-    <div class="container py-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+
+    <div class="container py-4 py-md-5">
+        
+        <!-- Encabezado con Botones de Acción -->
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
             <div>
-                <h3 class="fw-bold mb-0">📋 Historial de Movimientos</h3>
-                <p class="text-muted small mb-0">Listado de piezas extraídas y estado de retorno.</p>
+                <h2 class="fw-bold text-dark mb-1">
+                    <i class="bi bi-journal-text text-primary me-2"></i>Historial de Movimientos
+                </h2>
+                <p class="text-muted mb-0 small">Listado completo de salidas, piezas extraídas, trazabilidad y estado en campo.</p>
             </div>
-            <div>
-                <a href="/admin/exportar_excel" class="btn btn-outline-success btn-sm rounded-pill me-2">
+            
+            <div class="d-flex gap-2">
+                <a href="/admin/exportar_csv" class="btn btn-outline-success btn-custom-action shadow-sm">
                     <i class="bi bi-file-earmark-excel me-1"></i> Exportar CSV
                 </a>
-                <a href="/" class="btn btn-secondary btn-sm rounded-pill"><i class="bi bi-house"></i> Inicio</a>
+                <a href="/" class="btn btn-primary btn-custom-action shadow-sm">
+                    <i class="bi bi-house-door-fill me-1"></i> Inicio
+                </a>
             </div>
         </div>
 
-        <div class="card card-custom bg-white overflow-hidden">
+        <!-- Tarjeta Principal del Historial -->
+        <div class="card main-card bg-white p-3 p-md-4">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Fecha</th>
+                            <th>Fecha y Hora</th>
                             <th>Máquina</th>
                             <th>Pieza</th>
                             <th>Técnico</th>
-                            <th>Motivo</th>
-                            <th>Evidencia</th>
+                            <th>Motivo / Destino</th>
+                            <th>Retirada a Campo</th>
+                            <th class="text-center">Evidencia</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% set lista_registros = registros if registros is defined else historial %}
-                        {% for reg in lista_registros %}
+                        {% for r in registros %}
                         <tr>
-                            <td>{{ reg.fecha_registro or reg.devuelto_el or '—' }}</td>
-                            <td><span class="badge bg-secondary">{{ reg.maquina or reg.maquina_codigo or '—' }}</span></td>
-                            <td>{{ reg.pieza or reg.pieza_nombre or '—' }}</td>
-                            <td>{{ reg.tecnico or '—' }}</td>
-                            <td>{{ reg.motivo or '—' }}</td>
+                            <!-- Fecha -->
+                            <td class="text-nowrap">
+                                <i class="bi bi-calendar3 text-muted me-1 small"></i>
+                                <span class="small fw-medium text-secondary">{{ r.fecha_registro if r.fecha_registro else r[1] }}</span>
+                            </td>
+
+                            <!-- Máquina -->
                             <td>
-                                {% set foto = reg.foto_url or reg.foto_evidencia %}
-                                {% if foto %}
-                                    <!-- Si en la BD se guardó sin '/static/', se lo agregamos automáticamente -->
-                                    {% set foto_src = foto if foto.startswith('/') else '/static/' + foto %}
+                                <span class="badge bg-secondary-subtle text-secondary-emphasis border badge-code">
+                                    {{ r.maquina if r.maquina else (r.maquina_codigo if r.maquina_codigo else '—') }}
+                                </span>
+                            </td>
 
-                                    <!-- Botón para abrir el Modal -->
-                                    <button type="button" class="btn btn-sm btn-info text-white rounded-pill" data-bs-toggle="modal" data-bs-target="#modalFoto{{ reg.id or loop.index }}">
-                                        <i class="bi bi-image me-1"></i> Ver Foto
-                                    </button>
-
-                                    <!-- Modal / Ventana Emergente -->
-                                    <div class="modal fade" id="modalFoto{{ reg.id or loop.index }}" tabindex="-1" aria-hidden="true">
-                                        <div class="modal-dialog modal-dialog-centered modal-lg">
-                                            <div class="modal-content">
-                                                <div class="modal-header bg-dark text-white">
-                                                    <h5 class="modal-title">📷 Evidencia - {{ reg.maquina or reg.maquina_codigo }}</h5>
-                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                </div>
-                                                <div class="modal-body text-center p-3 bg-light">
-                                                    <img src="{{ foto_src }}" class="img-fluid rounded shadow" style="max-height: 500px;" alt="Foto de Evidencia">
-                                                </div>
-                                                <div class="modal-footer">
-                                                    <a href="{{ foto_src }}" target="_blank" class="btn btn-sm btn-primary">
-                                                        <i class="bi bi-box-arrow-up-right me-1"></i> Abrir en tamaño completo
-                                                    </a>
-                                                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                            <!-- Pieza -->
+                            <td>
+                                {% set pieza_val = r.pieza if r.pieza else r.pieza_nombre %}
+                                {% if pieza_val and pieza_val != '—' and pieza_val != '' %}
+                                    <span class="fw-semibold text-dark"><i class="bi bi-gear me-1 text-primary"></i>{{ pieza_val }}</span>
                                 {% else %}
-                                    <span class="text-muted small">Sin foto</span>
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Técnico -->
+                            <td class="fw-medium text-dark">
+                                <i class="bi bi-person-circle text-muted me-1"></i>
+                                {{ r.tecnico if r.tecnico else '—' }}
+                            </td>
+
+                            <!-- Motivo / Destino -->
+                            <td>
+                                <span class="text-muted small">
+                                    {{ r.motivo if r.motivo else '—' }}
+                                </span>
+                            </td>
+
+                            <!-- COLUMNA NUEVA: Retirada a Campo / Estado -->
+                            <td>
+                                {% set est = r.estado if r.estado else r.estado_solicitud %}
+                                {% if est == 'Rentada' or est == 'Salida a Renta' %}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill">
+                                        <i class="bi bi-truck me-1"></i> En Campo (Renta)
+                                    </span>
+                                {% elif est == 'Devuelto' or est == 'Entregado' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">
+                                        <i class="bi bi-check-circle me-1"></i> En Taller
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle rounded-pill">
+                                        <i class="bi bi-arrow-right-circle me-1"></i> {{ est if est else 'Registrado' }}
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Evidencia / Foto -->
+                            <td class="text-center">
+                                {% set foto = r.foto_url if r.foto_url else r.foto_evidencia %}
+                                {% if foto and foto != 'Sin foto' and foto != '' %}
+                                    <a href="{{ foto }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill py-0 px-2 small">
+                                        <i class="bi bi-image me-1"></i> Ver Foto
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted small"><i class="bi bi-camera-video-off me-1"></i>Sin foto</span>
                                 {% endif %}
                             </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="6" class="text-center py-4 text-muted">No hay registros de historial.</td>
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <i class="bi bi-inbox display-6 d-block mb-2 text-secondary opacity-50"></i>
+                                No hay registros de movimientos en el historial.
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
+
     </div>
 
-    <!-- Script fundamental de Bootstrap para activar los Modales -->
+    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
