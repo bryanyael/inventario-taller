@@ -90,8 +90,19 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # ==========================================
 
 @app.route("/")
+@app.route('/')
 def inicio():
-    return render_template("inicio.html")
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row  # Esto permite leer las columnas por nombre
+    cursor = conn.cursor()
+    
+    # Traemos las máquinas de la base de datos
+    cursor.execute("SELECT * FROM maquinas")
+    maquinas = cursor.fetchall()
+    conn.close()
+    
+    # Se las enviamos a la plantilla
+    return render_template('inicio.html', maquinas=maquinas)
 
 
 @app.route("/maquina/<codigo>")
