@@ -39,59 +39,66 @@
                     </thead>
                     <tbody>
                         {% for pieza in piezas %}
+                        {% set stock_disp = (pieza.cantidad or pieza.stock or 0)|int %}
                         <tr>
-                            <td class="fw-bold"><span class="badge bg-secondary">{{ pieza.codigo }}</span></td>
+                            <td class="fw-bold"><span class="badge bg-secondary">{{ pieza.codigo or pieza.id }}</span></td>
                             <td>{{ pieza.nombre }}</td>
                             <td><i class="bi bi-geo-alt me-1 text-muted"></i>{{ pieza.ubicacion or 'Estante General' }}</td>
+                            
+                            <!-- Stock Disponible -->
                             <td class="text-center">
-                                {% if pieza.cantidad > 0 %}
-                                    <span class="badge bg-success fs-6">{{ pieza.cantidad }} uds.</span>
+                                {% if stock_disp > 0 %}
+                                    <span class="badge bg-success fs-6">{{ stock_disp }} uds.</span>
                                 {% else %}
-                                    <span class="badge bg-danger fs-6">Agotado</span>
+                                    <span class="badge bg-danger fs-6"><i class="bi bi-x-circle me-1"></i>Agotado</span>
                                 {% endif %}
                             </td>
+
+                            <!-- Acción: Tomar o Bloquear -->
                             <td class="text-end">
-                                {% if pieza.cantidad > 0 %}
+                                {% if stock_disp > 0 %}
                                     <!-- Botón para tomar piezas -->
-                                    <button type="button" class="btn btn-sm btn-warning fw-bold rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#modalTomar{{ loop.index }}">
+                                    <button type="button" class="btn btn-sm btn-warning fw-bold rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalTomar{{ loop.index }}">
                                         <i class="bi bi-box-arrow-down me-1"></i> Tomar Pieza
                                     </button>
-                                {% else %}
-                                    <button class="btn btn-sm btn-secondary rounded-pill px-3" disabled>Sin Stock</button>
-                                {% endif %}
 
-                                <!-- Modal para Registrar Salida de Piezas -->
-                                <div class="modal fade text-start" id="modalTomar{{ loop.index }}" tabindex="-1" aria-hidden="true">
-                                    <div class="modal-dialog modal-dialog-centered">
-                                        <div class="modal-content">
-                                            <div class="modal-header bg-warning text-dark">
-                                                <h5 class="modal-title fw-bold"><i class="bi bi-box-arrow-down me-2"></i>Tomar Pieza: {{ pieza.nombre }}</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    <!-- Modal para Registrar Salida -->
+                                    <div class="modal fade text-start" id="modalTomar{{ loop.index }}" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content border-0 shadow">
+                                                <div class="modal-header bg-warning text-dark">
+                                                    <h5 class="modal-title fw-bold"><i class="bi bi-box-arrow-down me-2"></i>Tomar Pieza: {{ pieza.nombre }}</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <form action="/piezas/tomar/{{ pieza.codigo or pieza.id }}" method="POST">
+                                                    <div class="modal-body p-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">Cantidad a tomar (Máx: {{ stock_disp }}):</label>
+                                                            <input type="number" name="cantidad" class="form-control" min="1" max="{{ stock_disp }}" value="1" required>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">Técnico / Persona que la retira:</label>
+                                                            <input type="text" name="tecnico" class="form-control" placeholder="Ej. Juan Pérez" required>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">¿Para qué máquina o trabajo se usará?</label>
+                                                            <input type="text" name="motivo" class="form-control" placeholder="Ej. Mantenimiento / Cliente X" required>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer bg-light border-0">
+                                                        <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancelar</button>
+                                                        <button type="submit" class="btn btn-warning fw-bold rounded-pill px-4">Confirmar Retiro</button>
+                                                    </div>
+                                                </form>
                                             </div>
-                                            <form action="/piezas/tomar/{{ pieza.codigo }}" method="POST">
-                                                <div class="modal-body">
-                                                    <div class="mb-3">
-                                                        <label class="form-label fw-bold">Cantidad a tomar (Máx: {{ pieza.cantidad }}):</label>
-                                                        <input type="number" name="cantidad" class="form-control" min="1" max="{{ pieza.cantidad }}" value="1" required>
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label fw-bold">Técnico / Persona que la retira:</label>
-                                                        <input type="text" name="tecnico" class="form-control" placeholder="Ej. Juan Pérez" required>
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label fw-bold">¿Para qué máquina o trabajo se usará?</label>
-                                                        <input type="text" name="motivo" class="form-control" placeholder="Ej. Reparación de Taladro T-102 / Mantenimiento general" required>
-                                                    </div>
-                                                </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-                                                    <button type="submit" class="btn btn-warning fw-bold">Confirmar Retiro</button>
-                                                </div>
-                                            </form>
                                         </div>
                                     </div>
-                                </div>
-
+                                {% else %}
+                                    <!-- Botón Bloqueado si el stock es 0 -->
+                                    <button class="btn btn-sm btn-secondary rounded-pill px-3 opacity-50" disabled>
+                                        <i class="bi bi-slash-circle me-1"></i> Sin Stock
+                                    </button>
+                                {% endif %}
                             </td>
                         </tr>
                         {% else %}
