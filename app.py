@@ -452,27 +452,38 @@ def exportar_excel():
     )
 
 
-@app.route("/admin/nueva_maquina", methods=["GET", "POST"])
+@app.route('/admin/nueva_maquina', methods=['GET', 'POST'])
 def nueva_maquina():
-    if request.method == "POST":
-        codigo = request.form.get("codigo")
-        marca = request.form.get("marca")
-        modelo = request.form.get("modelo")
-        numero_serie = request.form.get("numero_serie")
-        ubicacion = request.form.get("ubicacion")
+    if request.method == 'POST':
+        codigo = request.form.get('codigo')
+        marca = request.form.get('marca')
+        modelo = request.form.get('modelo')
+        numero_serie = request.form.get('numero_serie')
+        ubicacion = request.form.get('ubicacion', 'Taller')
+        estado = request.form.get('estado', 'Disponible')
 
-        conn = sqlite3.connect(DB_NAME)
-        cursor = conn.cursor()
         try:
-            cursor.execute("INSERT INTO maquinas VALUES (?, ?, ?, ?, ?, 'Para repuestos')", 
-                           (codigo, marca, modelo, numero_serie, ubicacion))
+            conn = sqlite3.connect(DB_NAME)
+            cursor = conn.cursor()
+            
+            # Insertamos los datos en la tabla maquinas
+            cursor.execute("""
+                INSERT INTO maquinas (codigo, marca, modelo, numero_serie, ubicacion, estado)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (codigo, marca, modelo, numero_serie, ubicacion, estado))
+            
             conn.commit()
+            conn.close()
+            return redirect(url_for('inicio'))
+            
         except sqlite3.IntegrityError:
-            pass
-        conn.close()
-        return redirect(url_for('agregar_piezas', codigo=codigo))
+            return "Error: El código de la máquina ya existe en la base de datos.", 400
+        except Exception as e:
+            print(f"Error al guardar máquina: {e}")
+            return f"Error en el servidor al guardar la máquina: {str(e)}", 500
 
-    return render_template("nueva_maquina.html")
+    # Si entra por GET, muestra la plantilla con el formulario
+    return render_template('nueva_maquina.html')
 
 
 @app.route("/admin/agregar_piezas/<codigo>", methods=["GET", "POST"])
