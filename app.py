@@ -470,20 +470,6 @@ def limpiar_bd():
         return redirect(url_for('inicio'))
     except Exception as e:
         return f"Error al limpiar la base de datos: {str(e)}", 500
-@app.route('/admin/limpiar_bd', methods=['POST'])
-def limpiar_bd():
-    try:
-        conn = sqlite3.connect(DB_NAME)
-        c = conn.cursor()
-        c.execute("DELETE FROM piezas")
-        c.execute("DELETE FROM maquinas")
-        c.execute("DELETE FROM piezas_sueltas")
-        c.execute("DELETE FROM historial")
-        conn.commit()
-        conn.close()
-        return redirect(url_for('inicio'))
-    except Exception as e:
-        return f"Error al limpiar la base de datos: {str(e)}", 500
 
 
 @app.route('/admin/cargar_excel', methods=['POST'])
