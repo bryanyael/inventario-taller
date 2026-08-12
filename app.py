@@ -117,14 +117,24 @@ def inicio():
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM maquinas")
+    
+    # Máquinas LISTAS para renta (Solo las que están 'Disponible')
+    cursor.execute("SELECT * FROM maquinas WHERE estado = 'Disponible'")
     maquinas = cursor.fetchall()
+    
+    # Máquinas INCOMPLETAS o en taller/mantenimiento (Para separarlas)
+    cursor.execute("SELECT * FROM maquinas WHERE estado != 'Disponible'")
+    maquinas_incompletas = cursor.fetchall()
+    
     conn.close()
     
-    # 3. Enviamos los datos al HTML
-    return render_template('inicio.html', maquinas=maquinas, es_admin=es_admin)
-
-
+    # 3. Enviamos ambas listas al HTML
+    return render_template(
+        'inicio.html', 
+        maquinas=maquinas, 
+        maquinas_incompletas=maquinas_incompletas, 
+        es_admin=es_admin
+    )
 # --- RUTAS DE ADMINISTRACIÓN ---
 @app.route('/login_admin', methods=['POST'])
 def login_admin():
@@ -518,10 +528,35 @@ def cargar_excel():
                 estado_maq = 'Disponible'
 
             if codigo_maq and codigo_maq.lower() != 'nan':
-                c.execute('''INSERT OR IGNORE INTO maquinas (codigo, marca, modelo, numero_serie, ubicacion, estado)
-                             VALUES (?, ?, ?, ?, ?, ?)''', 
+                
+                # --- DETECTOR AUTOMÁTICO DE ESTADO AL 100% ---
+                # Primer recorrido por las celdas para saber si la máquina está completa
+                es_completa = True
+                for col_pieza in df.columns:
+                    if col_pieza not in cols_ignorar:
+                        val_pieza = str(row.get(col_pieza, '')).strip().lower()
+                        if val_pieza and val_pieza != 'nan':
+                            palabras_no = ['no', 'sin unidad', 'falta', '0', 'falta fijado', 'sin protector', 'sin']
+                            if val_pieza in palabras_no or any(p in val_pieza for p in ['falta', 'sin', 'no ']):
+                                es_completa = False
+                                break
+
+                # Si NO está completa, cambiamos su estado a 'Incompleto'
+                if not es_completa and estado_maq == 'Disponible':
+                    estado_maq = 'Incompleto'
+
+                # Guardamos o actualizamos la máquina con su estado real
+                c.execute('''INSERT INTO maquinas (codigo, marca, modelo, numero_serie, ubicacion, estado)
+                             VALUES (?, ?, ?, ?, ?, ?)
+                             ON CONFLICT(codigo) DO UPDATE SET
+                                marca = excluded.marca,
+                                modelo = excluded.modelo,
+                                numero_serie = excluded.numero_serie,
+                                ubicacion = excluded.ubicacion,
+                                estado = excluded.estado''', 
                           (codigo_maq, marca_maq, modelo_maq, num_serie_maq, ubicacion_maq, estado_maq))
                 
+                # Guardamos el desglose de cada pieza en la tabla piezas
                 idx_pieza = 1
                 for col_pieza in df.columns:
                     if col_pieza not in cols_ignorar:
@@ -558,8 +593,6 @@ def cargar_excel():
 
     except Exception as e:
         return f"Error al procesar el Excel: {str(e)}", 500
-
-
 @app.route("/admin/imprimir_qrs")
 def imprimir_qrs():
     conn = sqlite3.connect(DB_NAME)
