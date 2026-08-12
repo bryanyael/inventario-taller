@@ -256,17 +256,25 @@ def devolver_pieza(codigo, pieza_id):
 def ver_historial():
     try:
         conn = sqlite3.connect(DB_NAME)
+        # 🔑 ESTA LÍNEA HACE LA MAGIA: permite acceder a las columnas por nombre en el HTML
+        conn.row_factory = sqlite3.Row  
         c = conn.cursor()
 
-        c.execute("""SELECT id, maquina_codigo, pieza_nombre, tecnico, motivo, 
-                            fecha_regreso, estado_solicitud, fecha_devuelto, foto_evidencia, fecha_registro 
+        c.execute("""SELECT id, 
+                            maquina_codigo AS maquina, 
+                            pieza_nombre AS pieza, 
+                            tecnico, 
+                            motivo, 
+                            fecha_regreso AS regreso_est, 
+                            estado_solicitud AS estado, 
+                            fecha_devuelto AS devuelto_el, 
+                            foto_evidencia AS foto_url 
                      FROM historial 
                      ORDER BY id DESC""")
         registros = c.fetchall()
         
         conn.close()
         
-        # Intenta renderizar registros.html o historial.html según cual exista
         try:
             return render_template('historial.html', registros=registros)
         except:
@@ -275,9 +283,6 @@ def ver_historial():
     except Exception as e:
         print(f"Error al cargar historial: {e}")
         return f"Error al cargar el historial: {str(e)}", 500
-
-
-@app.route('/admin/limpiar_bd', methods=['POST'])
 def limpiar_bd():
     try:
         conn = sqlite3.connect(DB_NAME)
