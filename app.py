@@ -216,41 +216,33 @@ def solicitar(codigo, pieza_id):
 @app.route('/piezas/tomar/<int:id_pieza>', methods=['POST'])
 def tomar_pieza_suelta(id_pieza):
     cantidad_a_tomar = int(request.form.get('cantidad', 1))
-
+    
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
-    # Buscamos la pieza exacta por su ID único
+    # Imprimimos las columnas reales que tiene tu tabla en SQLite
+    c.execute("PRAGMA table_info(piezas_sueltas);")
+    print("COLUMNAS DE LA TABLA:", c.fetchall())
+
     c.execute("SELECT * FROM piezas_sueltas WHERE id = ?", (id_pieza,))
     pieza = c.fetchone()
-
+    
     if pieza:
-        keys = pieza.keys() if hasattr(pieza, 'keys') else []
-        
-        # Identificamos si usa la columna 'stock' o 'cantidad'
-        stock_actual = 0
-        columna_usada = "stock"
-        
-        if "stock" in keys and pieza["stock"] is not None:
-            stock_actual = int(pieza["stock"])
-            columna_usada = "stock"
-        elif "cantidad" in keys and pieza["cantidad"] is not None:
-            stock_actual = int(pieza["cantidad"])
-            columna_usada = "cantidad"
-        else:
-            stock_actual = 1
-
-        # Calculamos el nuevo stock asegurando que no baje de 0
-        nuevo_stock = max(0, stock_actual - cantidad_a_tomar)
-
-        # Actualizamos la base de datos exactamente en esa fila
-        if columna_usada == "stock":
-            c.execute("UPDATE piezas_sueltas SET stock = ? WHERE id = ?", (nuevo_stock, id_pieza))
-        else:
-            c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, id_pieza))
-            
-        conn.commit()
+        print("PIEZA ENCONTRADA:", dict(pieza))
+        # Forzamos la actualización directa usando los nombres más comunes en SQLite
+        try:
+            c.execute("UPDATE piezas_sueltas SET stock = stock - ? WHERE id = ?", (cantidad_a_tomar, id_pieza))
+            conn.commit()
+            print("Stock actualizado usando 'stock - ?'")
+        except Exception as e:
+            print("Error con 'stock':", e)
+            try:
+                c.execute("UPDATE piezas_sueltas SET cantidad = cantidad - ? WHERE id = ?", (cantidad_a_tomar, id_pieza))
+                conn.commit()
+                print("Stock actualizado usando 'cantidad - ?'")
+            except Exception as e2:
+                print("Error con 'cantidad':", e2)
 
     conn.close()
     return redirect(url_for('piezas_sueltas'))
