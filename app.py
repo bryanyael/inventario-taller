@@ -212,7 +212,76 @@ def solicitar(codigo, pieza_id):
 
     return render_template("solicitud.html", maquina=maquina_info, codigo=codigo, pieza=pieza_info)
 
+# RUTA 1: Para retirar/usar una pieza suelta del stock
+@app.route('/solicitar_pieza_suelta/<int:pieza_id>', methods=['POST'])
+def solicitar_pieza_suelta(pieza_id):
+    tecnico = request.form.get('tecnico', 'Taller')
+    motivo = request.form.get('motivo', 'Uso general')
+    
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    
+    # Obtener datos de la pieza suelta
+    c.execute("SELECT nombre, stock FROM piezas_sueltas WHERE id = ?", (pieza_id,))
+    pieza = c.fetchone()
+    
+    if pieza and pieza[1] > 0:
+        nuevo_stock = pieza[1] - 1
+        c.execute("UPDATE piezas_sueltas SET stock = ? WHERE id = ?", (nuevo_stock, pieza_id))
+        
+        fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Guardar en el historial general de movimientos
+        c.execute("""INSERT INTO historial 
+                     (maquina_codigo, pieza_id, tecnico, motivo, estado_solicitud, fecha_solicitud)
+                     VALUES (?, ?, ?, ?, 'Retirada a Campo', ?)""",
+                  ('REPUESTO-SUELTO', pieza_id, tecnico, motivo, fecha_actual))
+        
+        conn.commit()
+    conn.close()
+    return redirect('/piezas_sueltas')
 
+# RUTA 2: Para devolver la pieza suelta (con foto)
+@app.route('/devolver_pieza_suelta/<int:pieza_id>', methods=['POST'])
+def devolver_pieza_suelta(pieza_id):
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        c = conn.cursor()
+        
+        nombre_foto = None
+        if 'foto_evidencia' in request.files:
+            file = request.files['foto_evidencia']
+            if file and file.filename != '':
+                carpeta_destino = os.path.join('static', 'evidencias')
+                os.makedirs(carpeta_destino, exist_ok=True)
+                ext = os.path.splitext(file.filename)[1]
+                nombre_foto = secure_filename(f"dev_ps_{pieza_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{ext}")
+                file.save(os.path.join(carpeta_destino, nombre_foto))
+
+        fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # Re-incrementar el stock de la pieza suelta
+        c.execute("UPDATE piezas_sueltas SET stock = stock + 1 WHERE id = ?", (pieza_id,))
+
+        # Actualizar el último movimiento en el historial
+        c.execute("""SELECT id FROM historial 
+                     WHERE pieza_id = ? AND maquina_codigo = 'REPUESTO-SUELTO' 
+                     ORDER BY id DESC LIMIT 1""", (pieza_id,))
+        ultimo_registro = c.fetchone()
+
+        if ultimo_registro:
+            reg_id = ultimo_registro[0]
+            c.execute("""UPDATE historial 
+                         SET estado_solicitud = 'Devuelto', fecha_devuelto = ?, foto_evidencia = ? 
+                         WHERE id = ?""", (fecha_actual, nombre_foto, reg_id))
+
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error al devolver pieza suelta: {e}")
+        return f"Error: {str(e)}", 500
+
+    return redirect('/piezas_sueltas')
 @app.route('/maquina/rentar/<codigo>', methods=['POST'])
 def rentar_maquina(codigo):
     destino = request.form.get('destino')
