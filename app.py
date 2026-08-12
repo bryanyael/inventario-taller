@@ -191,6 +191,7 @@ def rentar_maquina(codigo):
         return redirect(url_for('inicio'))
     except Exception as e:
         return f"Error al procesar la renta de la máquina: {str(e)}", 500
+
 @app.route("/enviar_solicitud", methods=["POST"])
 def enviar_solicitud():
     codigo = request.form.get("codigo")
@@ -250,7 +251,8 @@ def devolver_pieza(codigo, pieza_id):
                     path_completo = os.path.join(app.config['UPLOAD_FOLDER'], nombre_foto)
                     
                     foto.save(path_completo)
-                    ruta_foto_db = f"/static/evidencias/{nombre_foto}"
+                    # Guardamos la ruta estática estándar
+                    ruta_foto_db = f"evidencias/{nombre_foto}"
                 except Exception as img_err:
                     print(f"Error al guardar imagen: {img_err}")
 
@@ -296,7 +298,6 @@ def devolver_pieza(codigo, pieza_id):
 def ver_historial():
     try:
         conn = sqlite3.connect(DB_NAME)
-        # 🔑 ESTA LÍNEA HACE LA MAGIA: permite acceder a las columnas por nombre en el HTML
         conn.row_factory = sqlite3.Row  
         c = conn.cursor()
 
@@ -323,6 +324,8 @@ def ver_historial():
     except Exception as e:
         print(f"Error al cargar historial: {e}")
         return f"Error al cargar el historial: {str(e)}", 500
+
+
 @app.route('/admin/limpiar_bd', methods=['POST'])
 def limpiar_bd():
     try:
@@ -370,18 +373,26 @@ def cargar_excel():
                 col_cod_pz = posible
                 break
 
-        cols_ignorar = ['Serie del equipo', 'Modelo', 'Observaciones', 'Fecha', 'Técnico', 'Entregado por', 'Firma', 'RENTADA']
+        cols_ignorar = ['Serie del equipo', 'Modelo', 'Observaciones', 'Fecha', 'Técnico', 'Entregado por', 'Firma', 'RENTADA', 'codigo', 'marca', 'modelo', 'numero_serie', 'ubicacion', 'estado']
 
         for _, row in df.iterrows():
-            serie = str(row.get('Serie del equipo', '')).strip()
-            modelo = str(row.get('Modelo', '')).strip()
-            ubicacion = str(row.get('Observaciones', '')).strip()
-            if not ubicacion or ubicacion.lower() == 'nan':
-                ubicacion = 'Taller'
+            # Soporta formato estándar de Excel o columnas directas
+            codigo_maq = str(row.get('codigo', row.get('Serie del equipo', ''))).strip()
+            marca_maq = str(row.get('marca', 'Kyocera')).strip()
+            modelo_maq = str(row.get('modelo', row.get('Modelo', ''))).strip()
+            num_serie_maq = str(row.get('numero_serie', row.get('Serie del equipo', ''))).strip()
+            ubicacion_maq = str(row.get('ubicacion', row.get('Observaciones', 'Taller'))).strip()
+            estado_maq = str(row.get('estado', 'Disponible')).strip()
 
-            if serie and serie.lower() != 'nan':
+            if not ubicacion_maq or ubicacion_maq.lower() == 'nan':
+                ubicacion_maq = 'Taller'
+            if not estado_maq or estado_maq.lower() == 'nan':
+                estado_maq = 'Disponible'
+
+            if codigo_maq and codigo_maq.lower() != 'nan':
                 c.execute('''INSERT OR IGNORE INTO maquinas (codigo, marca, modelo, numero_serie, ubicacion, estado)
-                             VALUES (?, ?, ?, ?, ?, 'Para repuestos')''', (serie, 'Kyocera', modelo, serie, ubicacion))
+                             VALUES (?, ?, ?, ?, ?, ?)''', 
+                          (codigo_maq, marca_maq, modelo_maq, num_serie_maq, ubicacion_maq, estado_maq))
                 
                 idx_pieza = 1
                 for col_pieza in df.columns:
@@ -401,16 +412,16 @@ def cargar_excel():
                                 estado_texto = "Disponible"
 
                             nombre_pieza = col_pieza
-                            cod_pieza = f"PZ-{serie}-{idx_pieza}"
+                            cod_pieza = f"PZ-{codigo_maq}-{idx_pieza}"
 
                             if col_cod_pz:
                                 query = f'''INSERT INTO piezas ({col_fk}, nombre, {col_cod_pz}, disponible, estado)
                                            VALUES (?, ?, ?, ?, ?)'''
-                                c.execute(query, (serie, nombre_pieza, cod_pieza, disponible, estado_texto))
+                                c.execute(query, (codigo_maq, nombre_pieza, cod_pieza, disponible, estado_texto))
                             else:
                                 query = f'''INSERT INTO piezas ({col_fk}, nombre, disponible, estado)
                                            VALUES (?, ?, ?, ?)'''
-                                c.execute(query, (serie, nombre_pieza, disponible, estado_texto))
+                                c.execute(query, (codigo_maq, nombre_pieza, disponible, estado_texto))
 
                             idx_pieza += 1
 
