@@ -253,6 +253,7 @@ def rentar_maquina(codigo):
 
 
 @app.route("/enviar_solicitud", methods=["POST"])
+@app.route("/extraer_pieza", methods=["POST"])
 def enviar_solicitud():
     codigo = request.form.get("codigo")
     pieza_id = request.form.get("pieza_id")
@@ -312,7 +313,7 @@ def devolver_pieza(codigo, pieza_id):
                 except Exception as img_err:
                     print(f"Error al guardar imagen: {img_err}")
 
-        c.execute("UPDATE piezas SET disponible = 1, estado = 'Disponible' WHERE id = ?", (pieza_id,))
+        c.execute("UPDATE piezas SET disponible = 0, estado = 'Disponible' WHERE id = ?", (pieza_id,))
         fecha_ahora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
         c.execute("""UPDATE historial 
