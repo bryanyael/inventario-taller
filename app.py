@@ -209,9 +209,20 @@ def rentar_maquina(codigo):
     try:
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
-        cursor.execute("""UPDATE maquinas 
-                          SET estado = 'Rentada', destino = ?, tecnico_cargo = ? 
-                          WHERE codigo = ?""", (destino, tecnico, codigo))
+        
+        # 1. Actualizamos el estado actual de la máquina
+        cursor.execute("""
+            UPDATE maquinas 
+            SET estado = 'Rentada', destino = ?, tecnico_cargo = ? 
+            WHERE codigo = ?
+        """, (destino, tecnico, codigo))
+        
+        # 2. GUARDAMOS EL MOVIMIENTO EN EL HISTORIAL / REGISTROS
+        cursor.execute("""
+            INSERT INTO registros (tipo_movimiento, codigo_maquina, tecnico, destino, fecha)
+            VALUES ('Salida a Renta', ?, ?, ?, DATETIME('now', 'localtime'))
+        """, (codigo, tecnico, destino))
+
         conn.commit()
         conn.close()
         return redirect(url_for('inicio'))
