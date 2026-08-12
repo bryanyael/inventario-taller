@@ -113,7 +113,29 @@ def inicio():
     maquinas = cursor.fetchall()
     conn.close()
     return render_template('inicio.html', maquinas=maquinas)
+from flask import Flask, render_template, request, session, redirect, url_for
 
+app.secret_key = 'clave_secreta_taller'
+
+@app.route('/')
+def inicio():
+    # Verificamos si la sesión actual tiene permisos de Admin
+    es_admin = session.get('es_admin', False)
+    return render_template('inicio.html', maquinas=mis_maquinas, es_admin=es_admin)
+
+# Ruta para que tú entres como Admin cuando lo necesites
+@app.route('/login_admin', methods=['POST'])
+def login_admin():
+    password = request.form.get('password')
+    if password == "1234": # Cambia "1234" por tu contraseña
+        session['es_admin'] = True
+    return redirect(url_for('inicio'))
+
+# Ruta para salir del modo Admin
+@app.route('/logout_admin')
+def logout_admin():
+    session.pop('es_admin', None)
+    return redirect(url_for('inicio'))
 
 @app.route("/maquina/<codigo>")
 def maquina(codigo):
