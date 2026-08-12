@@ -39,7 +39,21 @@
     </style>
 </head>
 <body>
-    <div class="container py-5">
+    <div class="container py-4 py-md-5">
+
+        <!-- Barra superior: Estado de Sesión / Botón Admin -->
+        <div class="d-flex justify-content-end mb-3">
+            {% if es_admin %}
+                <a href="/logout_admin" class="btn btn-outline-secondary btn-sm rounded-pill">
+                    <i class="bi bi-person-check-fill text-success me-1"></i> Modo Admin (Cerrar sesión)
+                </a>
+            {% else %}
+                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#modalLoginAdmin">
+                    <i class="bi bi-lock-fill me-1"></i> Acceso Admin
+                </button>
+            {% endif %}
+        </div>
+
         <div class="row justify-content-center">
             <div class="col-md-10 col-lg-8">
                 
@@ -55,51 +69,56 @@
                     
                     <!-- Menú de Opciones Principales -->
                     <div class="d-grid gap-3 mb-4">
-                        <!-- NUEVO BOTÓN: PIEZAS SUELTAS / STOCK GENERAL -->
+                        <!-- OPCIÓN PÚBLICA: Todos los compañeros la ven -->
                         <a href="/piezas_sueltas" class="btn btn-purple btn-action">
                             <i class="bi bi-boxes me-2"></i> Stock de Piezas Sueltas / Repuestos
                         </a>
 
-                        <a href="/admin/nueva_maquina" class="btn btn-primary btn-action">
-                            <i class="bi bi-plus-circle-fill me-2"></i>Registrar Nueva Máquina
-                        </a>
-                        <a href="/admin/imprimir_qrs" class="btn btn-success btn-action">
-                            <i class="bi bi-qr-code-scan me-2"></i>Imprimir Códigos QR
-                        </a>
-                        <a href="/admin/registros" class="btn btn-dark btn-action">
-                            <i class="bi bi-journal-text me-2"></i>Historial de Movimientos
-                        </a>
-                        
-                        <!-- Botón para Vaciar Inventario -->
-                        <div class="mt-4 pt-3 border-top text-end">
-                            <form action="/admin/limpiar_bd" method="POST" onsubmit="return confirm('¿Estás segura de que deseas borrar TODAS las máquinas, piezas e historial?');">
-                                <button type="submit" class="btn btn-outline-danger btn-sm">
-                                    <i class="bi bi-trash me-1"></i> Vaciar/Borrar Todo el Inventario
-                                </button>
-                            </form>
-                        </div>
+                        <!-- OPCIONES PROTEGIDAS: Solo visibles para Admin -->
+                        {% if es_admin %}
+                            <a href="/admin/nueva_maquina" class="btn btn-primary btn-action">
+                                <i class="bi bi-plus-circle-fill me-2"></i>Registrar Nueva Máquina
+                            </a>
+                            <a href="/admin/imprimir_qrs" class="btn btn-success btn-action">
+                                <i class="bi bi-qr-code-scan me-2"></i>Imprimir Códigos QR
+                            </a>
+                            <a href="/admin/registros" class="btn btn-dark btn-action">
+                                <i class="bi bi-journal-text me-2"></i>Historial de Movimientos
+                            </a>
+                            
+                            <!-- Botón para Vaciar Inventario (SOLO ADMIN) -->
+                            <div class="mt-4 pt-3 border-top text-end">
+                                <form action="/admin/limpiar_bd" method="POST" onsubmit="return confirm('¿Estás segura de que deseas borrar TODAS las máquinas, piezas e historial?');">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                                        <i class="bi bi-trash me-1"></i> Vaciar/Borrar Todo el Inventario
+                                    </button>
+                                </form>
+                            </div>
+                        {% endif %}
                     </div>
 
-                    <!-- Sección de Carga Masiva desde Excel -->
-                    <div class="pt-3 border-top text-start">
-                        <h6 class="fw-bold text-secondary mb-2">
-                            <i class="bi bi-file-earmark-excel text-success me-1"></i> Carga Masiva desde Excel
-                        </h6>
-                        <form action="/admin/cargar_excel" method="POST" enctype="multipart/form-data" class="row g-2 align-items-center">
-                            <div class="col-8">
-                                <input type="file" name="archivo_excel" accept=".xlsx, .xls, .csv" class="form-control form-control-sm" required>
-                            </div>
-                            <div class="col-4">
-                                <button type="submit" class="btn btn-outline-success btn-sm w-100 fw-bold">
-                                    Subir Excel
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+                    <!-- Sección de Carga Masiva desde Excel (SOLO ADMIN) -->
+                    {% if es_admin %}
+                        <div class="pt-3 border-top text-start">
+                            <h6 class="fw-bold text-secondary mb-2">
+                                <i class="bi bi-file-earmark-excel text-success me-1"></i> Carga Masiva desde Excel
+                            </h6>
+                            <form action="/admin/cargar_excel" method="POST" enctype="multipart/form-data" class="row g-2 align-items-center">
+                                <div class="col-8">
+                                    <input type="file" name="archivo_excel" accept=".xlsx, .xls, .csv" class="form-control form-control-sm" required>
+                                </div>
+                                <div class="col-4">
+                                    <button type="submit" class="btn btn-outline-success btn-sm w-100 fw-bold">
+                                        Subir Excel
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    {% endif %}
 
                 </div>
 
-                <!-- Sección: Máquinas Disponibles para Rentar -->
+                <!-- Sección: Máquinas Disponibles para Rentar (PÚBLICA) -->
                 <div class="card hero-card bg-white p-4">
                     <h4 class="fw-bold text-dark mb-3"><i class="bi bi-truck me-2 text-primary"></i>Máquinas Listas para Renta</h4>
                     
@@ -192,7 +211,30 @@
         </div>
     </div>
 
-    <!-- Bootstrap JS (Necesario para los Modales) -->
+    <!-- Modal para Clave de Administrador -->
+    <div class="modal fade" id="modalLoginAdmin" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white py-2">
+                    <h6 class="modal-title mb-0"><i class="bi bi-shield-lock me-2"></i>Acceso Admin</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="/login_admin" method="POST">
+                    <div class="modal-body">
+                        <div class="mb-2">
+                            <label class="form-label small fw-bold">Contraseña:</label>
+                            <input type="password" name="password" class="form-control form-control-sm" placeholder="Ingresa tu clave" required autofocus>
+                        </div>
+                    </div>
+                    <div class="modal-footer py-2">
+                        <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">Ingresar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
