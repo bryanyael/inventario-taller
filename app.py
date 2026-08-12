@@ -212,7 +212,8 @@ def solicitar(codigo, pieza_id):
 
     return render_template("solicitud.html", maquina=maquina_info, codigo=codigo, pieza=pieza_info)
 
-@app.route('/piezas//<codigo>', methods=['POST'])
+# Módulos de piezas sueltas
+@app.route('/piezas/tomar/<codigo>', methods=['POST'])
 def tomar_pieza_suelta(codigo):
     tecnico = request.form.get('tecnico', 'Taller')
     motivo = request.form.get('motivo', 'Uso en taller / campo')
