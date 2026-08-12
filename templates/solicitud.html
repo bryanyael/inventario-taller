@@ -17,7 +17,7 @@
             <h4 class="fw-bold text-dark mb-1"><i class="bi bi-clipboard-check text-success me-2"></i>Registro de Extracción</h4>
             <p class="text-muted small mb-3">Máquina <strong>{{ codigo }}</strong> — {{ pieza.nombre }}</p>
             
-            <form action="/enviar_solicitud" method="POST">
+            <form action="/extraer_pieza" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="codigo" value="{{ codigo }}">
                 <input type="hidden" name="pieza_id" value="{{ pieza.id }}">
 
