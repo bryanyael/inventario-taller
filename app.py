@@ -218,40 +218,45 @@ def solicitar(codigo, pieza_id):
 def tomar_pieza_suelta(codigo):
     tecnico = request.form.get('tecnico', 'Taller')
     motivo = request.form.get('motivo', 'Uso en taller / campo')
-    
+    try:
+        cantidad_tomada = int(request.form.get('cantidad', 1))
+    except (ValueError, TypeError):
+        cantidad_tomada = 1
+
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    
-    # 1. Buscar la pieza suelta por su código
-    c.execute("SELECT id, nombre, stock FROM piezas_sueltas WHERE codigo = ?", (codigo,))
+
+    # Buscar la pieza por código o ID
+    c.execute("SELECT id, nombre, COALESCE(stock, cantidad, 0) FROM piezas_sueltas WHERE codigo = ? OR id = ?", (codigo, codigo))
     pieza = c.fetchone()
-    
+
     if pieza:
         pieza_id, nombre_pieza, stock_actual = pieza[0], pieza[1], pieza[2]
-        
-        if stock_actual > 0:
-            # 2. Descontar 1 del stock
-            nuevo_stock = stock_actual - 1
-            c.execute("UPDATE piezas_sueltas SET stock = ? WHERE id = ?", (nuevo_stock, pieza_id))
+
+        if stock_actual >= cantidad_tomada:
+            nuevo_stock = stock_actual - cantidad_tomada
             
-            # 3. GUARDAR EN EL HISTORIAL (Usando fecha_registro en lugar de fecha_solicitud)
+            try:
+                c.execute("UPDATE piezas_sueltas SET stock = ? WHERE id = ?", (nuevo_stock, pieza_id))
+            except sqlite3.OperationalError:
+                c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
+
             fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            motivo_completo = f"{motivo} (Cantidad: {cantidad_tomada})"
             
-            # Intentamos insertar usando 'fecha_registro'
             try:
                 c.execute("""INSERT INTO historial 
                              (maquina_codigo, pieza_id, tecnico, motivo, estado_solicitud, fecha_registro)
-                             VALUES (?, ?, ?, ?, 'Retirada a Campo', ?)""",
-                          ('REPUESTO-SUELTO', pieza_id, tecnico, motivo, fecha_actual))
+                             VALUES (?, ?, ?, ?, 'Entregado', ?)""",
+                          ('REPUESTO-SUELTO', pieza_id, tecnico, motivo_completo, fecha_actual))
             except sqlite3.OperationalError:
-                # Respaldo si tu columna se llama simplemente 'fecha'
                 c.execute("""INSERT INTO historial 
                              (maquina_codigo, pieza_id, tecnico, motivo, estado_solicitud, fecha)
-                             VALUES (?, ?, ?, ?, 'Retirada a Campo', ?)""",
-                          ('REPUESTO-SUELTO', pieza_id, tecnico, motivo, fecha_actual))
-            
+                             VALUES (?, ?, ?, ?, 'Entregado', ?)""",
+                          ('REPUESTO-SUELTO', pieza_id, tecnico, motivo_completo, fecha_actual))
+
             conn.commit()
-    
+
     conn.close()
     return redirect('/piezas_sueltas')
 @app.route('/maquina/rentar/<codigo>', methods=['POST'])
