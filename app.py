@@ -442,7 +442,6 @@ def ver_historial():
         conn.row_factory = sqlite3.Row  
         c = conn.cursor()
 
-        # Usamos SELECT * para evitar fallas si alguna columna de fecha cambia de nombre
         c.execute("SELECT * FROM historial ORDER BY id DESC")
         rows = c.fetchall()
         conn.close()
@@ -451,32 +450,30 @@ def ver_historial():
         for r in rows:
             reg = dict(r)
             
-            # 1. Mapeo flexible de campos para asegurar que el HTML siempre encuentre la variable
+            # Mapeos de nombres de campos
             reg['fecha_registro'] = reg.get('fecha_registro') or reg.get('fecha_devuelto') or reg.get('fecha_regreso')
             reg['maquina'] = reg.get('maquina_codigo') or reg.get('maquina')
             reg['pieza'] = reg.get('pieza_nombre') or reg.get('pieza')
             
-            # 2. Corregimos la ruta de la foto para que busque dentro de static/evidencias/
+            # Normalización del estado
+            estado_raw = str(reg.get('estado_solicitud', '')).lower()
+            if 'devuel' in estado_raw or 'dispon' in estado_raw:
+                reg['estado_solicitud'] = 'Disponible'
+            else:
+                reg['estado_solicitud'] = 'Retirada a Campo'
+            
+            # Formateo de la foto de evidencia
             foto = reg.get('foto_evidencia') or reg.get('foto_url')
-            if foto and foto != 'None' and foto != 'Sin foto':
-                # Nos aseguramos de mantener o agregar 'evidencias/'
-                if '/' in foto:
-                    nombre_archivo = foto.split('/')[-1]
-                elif '\\' in foto:
-                    nombre_archivo = foto.split('\\')[-1]
-                else:
-                    nombre_archivo = foto
-                
-                # Le asignamos la ruta relativa correcta dentro de static
-                reg['foto_evidencia'] = f"evidencias/{nombre_archivo}"
-                reg['foto_url'] = f"evidencias/{nombre_archivo}"
+            if foto and foto not in ['None', 'Sin foto', '']:
+                nombre_archivo = foto.split('/')[-1].split('\\')[-1]
+                reg['foto_evidencia'] = f"/static/evidencias/{nombre_archivo}"
+                reg['foto_url'] = f"/static/evidencias/{nombre_archivo}"
             else:
                 reg['foto_evidencia'] = None
                 reg['foto_url'] = None
 
             registros.append(reg)
 
-        # Renderizamos directamente registros.html (el archivo real en tu carpeta templates)
         return render_template('registros.html', registros=registros, historial=registros)
             
     except Exception as e:
