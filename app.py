@@ -9,7 +9,9 @@ from werkzeug.utils import secure_filename
 from flask import Flask, render_template, request, session, redirect, url_for
 
 app = Flask(__name__)
-
+# Carpeta donde se guardarán las fotos de evidencia
+UPLOAD_FOLDER = 'static/evidencias'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # Configuración de ruta absoluta para la BD
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_NAME = os.path.join(BASE_DIR, "inventario.db")
