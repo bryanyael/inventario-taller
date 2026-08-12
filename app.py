@@ -210,14 +210,26 @@ def rentar_maquina(codigo):
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
         
-        # 1. Actualizamos el estado actual de la máquina
+        # 1. Creamos la tabla 'registros' si aún no existe
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS registros (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tipo_movimiento TEXT,
+                codigo_maquina TEXT,
+                tecnico TEXT,
+                destino TEXT,
+                fecha TEXT
+            )
+        """)
+        
+        # 2. Actualizamos el estado de la máquina
         cursor.execute("""
             UPDATE maquinas 
             SET estado = 'Rentada', destino = ?, tecnico_cargo = ? 
             WHERE codigo = ?
         """, (destino, tecnico, codigo))
         
-        # 2. GUARDAMOS EL MOVIMIENTO EN EL HISTORIAL / REGISTROS
+        # 3. Guardamos la salida en el historial / registros
         cursor.execute("""
             INSERT INTO registros (tipo_movimiento, codigo_maquina, tecnico, destino, fecha)
             VALUES ('Salida a Renta', ?, ?, ?, DATETIME('now', 'localtime'))
