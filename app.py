@@ -509,7 +509,7 @@ def limpiar_bd():
 
 @app.route('/admin/cargar_excel', methods=['POST'])
 def cargar_excel():
-    file = request.files.get('archivo_excel')
+    file = request.files.get('archivo_excel') or request.files.get('archivo') or request.files.get('file')
     if not file or file.filename == '':
         return "No seleccionaste ningún archivo", 400
 
@@ -524,6 +524,50 @@ def cargar_excel():
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
 
+        # =========================================================================
+        # NUEVO: Detección automática para Excel de "Piezas Sueltas / Repuestos"
+        # (Soporta columnas como 'nombre', 'Modelo de procedencia', 'ubicacion', 'stock')
+        # =========================================================================
+        if 'stock' in df.columns or ('nombre' in df.columns and 'codigo' not in df.columns and 'Serie del equipo' not in df.columns):
+            # Nos aseguramos de que exista la tabla piezas_sueltas
+            c.execute("""CREATE TABLE IF NOT EXISTS piezas_sueltas (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            codigo TEXT,
+                            nombre TEXT,
+                            ubicacion TEXT,
+                            stock INTEGER DEFAULT 1
+                        )""")
+
+            for _, row in df.iterrows():
+                nombre = str(row.get('nombre', '')).strip()
+                if nombre and nombre.lower() != 'nan':
+                    modelo = str(row.get('Modelo de procedencia', '')).strip()
+                    ubicacion = str(row.get('ubicacion', 'Taller')).strip()
+                    
+                    try:
+                        stock = int(row.get('stock', 1))
+                    except (ValueError, TypeError):
+                        stock = 1
+
+                    # Si viene el modelo, lo incluimos junto al nombre
+                    if modelo and modelo.lower() != 'nan':
+                        nombre_completo = f"{nombre} ({modelo})"
+                    else:
+                        nombre_completo = nombre
+
+                    cod_suelta = f"PS-{datetime.now().strftime('%M%S%f')[:6]}"
+
+                    c.execute("""INSERT INTO piezas_sueltas (codigo, nombre, ubicacion, stock)
+                                 VALUES (?, ?, ?, ?)""",
+                              (cod_suelta, nombre_completo, ubicacion, stock))
+
+            conn.commit()
+            conn.close()
+            return redirect(url_for('inicio'))
+
+        # =========================================================================
+        # CÓDIGO ORIGINAL: Carga de Máquinas y Desglose de Piezas
+        # =========================================================================
         c.execute("PRAGMA table_info(piezas)")
         cols_bd = [col[1] for col in c.fetchall()]
 
@@ -555,7 +599,6 @@ def cargar_excel():
             if codigo_maq and codigo_maq.lower() != 'nan':
                 
                 # --- DETECTOR AUTOMÁTICO DE ESTADO AL 100% ---
-                # Primer recorrido por las celdas para saber si la máquina está completa
                 es_completa = True
                 for col_pieza in df.columns:
                     if col_pieza not in cols_ignorar:
