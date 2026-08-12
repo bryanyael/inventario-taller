@@ -2,105 +2,101 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Stock de Piezas Sueltas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock de Piezas Sueltas - Taller</title>
+    <!-- Bootstrap 5 CSS e Iconos -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
-        body { background-color: #f8f9fa; }
-        .card-custom { border: none; border-radius: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+        .card-custom { border: none; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
     </style>
 </head>
 <body>
     <div class="container py-4">
-        <!-- Encabezado -->
+        
+        <!-- Encabezado y Navegación -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h3 class="fw-bold mb-0">📦 Stock de Piezas Sueltas</h3>
-                <p class="text-muted small mb-0">Piezas genéricas y repuestos clasificados por modelo compatible.</p>
+                <h2 class="fw-bold text-dark mb-1"><i class="bi bi-boxes me-2 text-primary"></i>Stock de Piezas Sueltas</h2>
+                <p class="text-muted mb-0">Selecciona o escanea una pieza para registrar su uso / salida.</p>
             </div>
-            <div>
-                <button type="button" class="btn btn-primary btn-sm rounded-pill me-2" data-bs-toggle="modal" data-bs-target="#modalAgregar">
-                    <i class="bi bi-plus-lg me-1"></i> Registrar Nueva Pieza
-                </button>
-                <a href="/" class="btn btn-secondary btn-sm rounded-pill"><i class="bi bi-house"></i> Inicio</a>
-            </div>
+            <a href="/" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Volver al Inicio</a>
         </div>
 
-        <!-- Tabla de Piezas -->
-        <div class="card card-custom bg-white overflow-hidden">
+        <!-- Tabla de Piezas / Repuestos -->
+        <div class="card card-custom p-4">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th>Pieza</th>
-                            <th>Nº Parte</th>
-                            <th>Modelos Compatibles</th>
+                            <th>Código</th>
+                            <th>Nombre de la Pieza</th>
                             <th>Ubicación</th>
-                            <th>Estado</th>
-                            <th>Stock</th>
-                            <th>Acción</th>
+                            <th class="text-center">Stock Disponible</th>
+                            <th class="text-end">Acción</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for p in piezas %}
+                        {% for pieza in piezas %}
                         <tr>
-                            <td class="fw-bold">{{ p.nombre }}</td>
-                            <td><code>{{ p.codigo_parte or '—' }}</code></td>
-                            <td><span class="badge bg-info text-dark">{{ p.modelos_compatibles or 'Universal' }}</span></td>
-                            <td>{{ p.ubicacion }}</td>
-                            <td><span class="badge bg-secondary">{{ p.estado }}</span></td>
-                            <td>
-                                {% if p.cantidad > 0 %}
-                                    <span class="badge bg-success font-monospace">{{ p.cantidad }} disponible(s)</span>
+                            <td class="fw-bold"><span class="badge bg-secondary">{{ pieza.codigo }}</span></td>
+                            <td>{{ pieza.nombre }}</td>
+                            <td><i class="bi bi-geo-alt me-1 text-muted"></i>{{ pieza.ubicacion or 'Estante General' }}</td>
+                            <td class="text-center">
+                                {% if pieza.cantidad > 0 %}
+                                    <span class="badge bg-success fs-6">{{ pieza.cantidad }} uds.</span>
                                 {% else %}
-                                    <span class="badge bg-danger">Agotado</span>
+                                    <span class="badge bg-danger fs-6">Agotado</span>
                                 {% endif %}
                             </td>
-                            <td>
-                                {% if p.cantidad > 0 %}
-                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill" data-bs-toggle="modal" data-bs-target="#modalUsar{{ p.id }}">
-                                        <i class="bi bi-box-arrow-right me-1"></i> Usar 1
+                            <td class="text-end">
+                                {% if pieza.cantidad > 0 %}
+                                    <!-- Botón para tomar piezas -->
+                                    <button type="button" class="btn btn-sm btn-warning fw-bold rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#modalTomar{{ loop.index }}">
+                                        <i class="bi bi-box-arrow-down me-1"></i> Tomar Pieza
                                     </button>
+                                {% else %}
+                                    <button class="btn btn-sm btn-secondary rounded-pill px-3" disabled>Sin Stock</button>
+                                {% endif %}
 
-                                    <!-- Modal Descontar Stock -->
-                                    <div class="modal fade" id="modalUsar{{ p.id }}" tabindex="-1" aria-hidden="true">
-                                        <div class="modal-dialog modal-dialog-centered">
-                                            <div class="modal-content">
-                                                <form action="/usar_pieza_suelta/{{ p.id }}" method="POST">
-                                                    <div class="modal-header bg-primary text-white">
-                                                        <h5 class="modal-title">Usar Repuesto: {{ p.nombre }}</h5>
-                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                    </div>
-                                                    <div class="modal-body">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Técnico que toma la pieza</label>
-                                                            <input type="text" name="tecnico" class="form-control" placeholder="Nombre del técnico" required>
-                                                        </div>
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Máquina o destino donde se usará</label>
-                                                            <input type="text" name="maquina_destino" class="form-control" placeholder="Ej: M3540-01 o Cliente X" required>
-                                                        </div>
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Motivo / Observaciones</label>
-                                                            <input type="text" name="motivo" class="form-control" placeholder="Ej: Mantenimiento o Reemplazo" required>
-                                                        </div>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
-                                                        <button type="submit" class="btn btn-primary btn-sm">Confirmar Salida</button>
-                                                    </div>
-                                                </form>
+                                <!-- Modal para Registrar Salida de Piezas -->
+                                <div class="modal fade text-start" id="modalTomar{{ loop.index }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-warning text-dark">
+                                                <h5 class="modal-title fw-bold"><i class="bi bi-box-arrow-down me-2"></i>Tomar Pieza: {{ pieza.nombre }}</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                             </div>
+                                            <form action="/piezas/tomar/{{ pieza.codigo }}" method="POST">
+                                                <div class="modal-body">
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-bold">Cantidad a tomar (Máx: {{ pieza.cantidad }}):</label>
+                                                        <input type="number" name="cantidad" class="form-control" min="1" max="{{ pieza.cantidad }}" value="1" required>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-bold">Técnico / Persona que la retira:</label>
+                                                        <input type="text" name="tecnico" class="form-control" placeholder="Ej. Juan Pérez" required>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-bold">¿Para qué máquina o trabajo se usará?</label>
+                                                        <input type="text" name="motivo" class="form-control" placeholder="Ej. Reparación de Taladro T-102 / Mantenimiento general" required>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                                                    <button type="submit" class="btn btn-warning fw-bold">Confirmar Retiro</button>
+                                                </div>
+                                            </form>
                                         </div>
                                     </div>
-                                {% else %}
-                                    <span class="text-muted small">Sin existencia</span>
-                                {% endif %}
+                                </div>
+
                             </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="7" class="text-center py-4 text-muted">No hay piezas sueltas en el stock.</td>
+                            <td colspan="5" class="text-center py-4 text-muted">No hay piezas sueltas o repuestos registrados en el sistema.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -109,56 +105,7 @@
         </div>
     </div>
 
-    <!-- Modal Registrar Nueva Pieza Suelta -->
-    <div class="modal fade" id="modalAgregar" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <form action="/admin/agregar_pieza_suelta" method="POST">
-                    <div class="modal-header bg-dark text-white">
-                        <h5 class="modal-title">📦 Registrar Nueva Pieza Suelta</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label class="form-label">Nombre del repuesto / pieza</label>
-                            <input type="text" name="nombre" class="form-control" placeholder="Ej: Cilindro OPC" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Modelos compatibles</label>
-                            <input type="text" name="modelos_compatibles" class="form-control" placeholder="Ej: Kyocera M3540 / M3040 / M3550">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Código / Nº de parte (Opcional)</label>
-                            <input type="text" name="codigo_parte" class="form-control" placeholder="Ej: 302LV93010">
-                        </div>
-                        <div class="row">
-                            <div class="col-6 mb-3">
-                                <label class="form-label">Cantidad inicial</label>
-                                <input type="number" name="cantidad" class="form-control" value="1" min="1" required>
-                            </div>
-                            <div class="col-6 mb-3">
-                                <label class="form-label">Estado</label>
-                                <select name="estado" class="form-select">
-                                    <option value="Nuevo">Nuevo</option>
-                                    <option value="Usado / Operativo">Usado / Operativo</option>
-                                    <option value="Revisar">Revisar</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Ubicación en taller</label>
-                            <input type="text" name="ubicacion" class="form-control" value="Estante Taller" placeholder="Ej: Estante A - Caja 2">
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-success btn-sm">Guardar Pieza</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
+    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
