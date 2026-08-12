@@ -213,51 +213,29 @@ def solicitar(codigo, pieza_id):
     return render_template("solicitud.html", maquina=maquina_info, codigo=codigo, pieza=pieza_info)
 
 # Módulos de piezas sueltas
-@app.route('/piezas/tomar/<codigo>', methods=['POST'])
-def tomar_pieza_suelta(codigo):
-    tecnico = request.form.get('tecnico', 'Taller')
-    motivo = request.form.get('motivo', 'Uso en taller / campo')
-    try:
-        cantidad_tomada = int(request.form.get('cantidad', 1))
-    except (ValueError, TypeError):
-        cantidad_tomada = 1
+@app.route('/piezas/tomar/<int:id_pieza>', methods=['POST'])
+def tomar_pieza_suelta(id_pieza):
+    cantidad_a_tomar = int(request.form.get('cantidad', 1))
+    tecnico = request.form.get('tecnico')
+    motivo = request.form.get('motivo')
 
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
 
-    # Buscar la pieza por código o ID
-    c.execute("SELECT id, nombre, COALESCE(stock, cantidad, 0) FROM piezas_sueltas WHERE codigo = ? OR id = ?", (codigo, codigo))
-    pieza = c.fetchone()
+    # 1. Obtenemos el stock actual de la pieza específica usando su ID único
+    c.execute("SELECT stock, nombre FROM piezas_sueltas WHERE id = ?", (id_pieza,))
+    row = c.fetchone()
 
-    if pieza:
-        pieza_id, nombre_pieza, stock_actual = pieza[0], pieza[1], pieza[2]
+    if row:
+        stock_actual = row[0] if row[0] is not None else 1
+        nuevo_stock = max(0, stock_actual - cantidad_a_tomar)
 
-        if stock_actual >= cantidad_tomada:
-            nuevo_stock = stock_actual - cantidad_tomada
-            
-            try:
-                c.execute("UPDATE piezas_sueltas SET stock = ? WHERE id = ?", (nuevo_stock, pieza_id))
-            except sqlite3.OperationalError:
-                c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
-
-            fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            motivo_completo = f"{motivo} (Cantidad: {cantidad_tomada})"
-            
-            try:
-                c.execute("""INSERT INTO historial 
-                             (maquina_codigo, pieza_id, tecnico, motivo, estado_solicitud, fecha_registro)
-                             VALUES (?, ?, ?, ?, 'Entregado', ?)""",
-                          ('REPUESTO-SUELTO', pieza_id, tecnico, motivo_completo, fecha_actual))
-            except sqlite3.OperationalError:
-                c.execute("""INSERT INTO historial 
-                             (maquina_codigo, pieza_id, tecnico, motivo, estado_solicitud, fecha)
-                             VALUES (?, ?, ?, ?, 'Entregado', ?)""",
-                          ('REPUESTO-SUELTO', pieza_id, tecnico, motivo_completo, fecha_actual))
-
-            conn.commit()
+        # 2. Actualizamos la base de datos restando la cantidad retirada
+        c.execute("UPDATE piezas_sueltas SET stock = ? WHERE id = ?", (nuevo_stock, id_pieza))
+        conn.commit()
 
     conn.close()
-    return redirect('/piezas_sueltas')
+    return redirect(url_for('piezas_sueltas'))
 @app.route('/maquina/rentar/<codigo>', methods=['POST'])
 def rentar_maquina(codigo):
     destino = request.form.get('destino')
