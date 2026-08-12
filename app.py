@@ -298,7 +298,20 @@ def piezas_sueltas():
     piezas = c.fetchall()
     conn.close()
     return render_template('piezas_sueltas.html', piezas=piezas)
-
+@app.route('/piezas/tomar/<codigo_pieza>', methods=['POST'])
+def tomar_pieza(codigo_pieza):
+    cantidad_retirada = int(request.form.get('cantidad'))
+    tecnico = request.form.get('tecnico')
+    motivo = request.form.get('motivo')
+    
+    # 1. Descontar la cantidad en la base de datos
+    # 2. Registrar el movimiento en el historial (Quién se la llevó y para qué)
+    
+    # Ejemplo con cursor de SQL:
+    # cursor.execute("UPDATE piezas SET cantidad = cantidad - %s WHERE codigo = %s", (cantidad_retirada, codigo_pieza))
+    # cursor.execute("INSERT INTO historial (tipo, pieza, tecnico, motivo, cantidad) VALUES ('SALIDA_PIEZA', %s, %s, %s, %s)", (codigo_pieza, tecnico, motivo, cantidad_retirada))
+    
+    return redirect('/piezas_sueltas')
 
 @app.route('/admin/agregar_pieza_suelta', methods=['POST'])
 def agregar_pieza_suelta():
