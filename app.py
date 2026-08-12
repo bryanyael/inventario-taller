@@ -213,35 +213,7 @@ def solicitar(codigo, pieza_id):
     return render_template("solicitud.html", maquina=maquina_info, codigo=codigo, pieza=pieza_info)
 
 # RUTA 1: Para retirar/usar una pieza suelta del stock
-@app.route('/solicitar_pieza_suelta/<int:pieza_id>', methods=['POST'])
-def solicitar_pieza_suelta(pieza_id):
-    tecnico = request.form.get('tecnico', 'Taller')
-    motivo = request.form.get('motivo', 'Uso general')
-    
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    
-    # Obtener datos de la pieza suelta
-    c.execute("SELECT nombre, stock FROM piezas_sueltas WHERE id = ?", (pieza_id,))
-    pieza = c.fetchone()
-    
-    if pieza and pieza[1] > 0:
-        nuevo_stock = pieza[1] - 1
-        c.execute("UPDATE piezas_sueltas SET stock = ? WHERE id = ?", (nuevo_stock, pieza_id))
-        
-        fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        # Guardar en el historial general de movimientos
-        c.execute("""INSERT INTO historial 
-                     (maquina_codigo, pieza_id, tecnico, motivo, estado_solicitud, fecha_solicitud)
-                     VALUES (?, ?, ?, ?, 'Retirada a Campo', ?)""",
-                  ('REPUESTO-SUELTO', pieza_id, tecnico, motivo, fecha_actual))
-        
-        conn.commit()
-    conn.close()
-    return redirect('/piezas_sueltas')
 
-# RUTA 2: Para devolver la pieza suelta (con foto)
 @app.route('/piezas/tomar/<codigo>', methods=['POST'])
 def tomar_pieza_suelta(codigo):
     tecnico = request.form.get('tecnico', 'Taller')
