@@ -78,7 +78,7 @@
                             <th>Pieza</th>
                             <th>Técnico</th>
                             <th>Motivo / Destino</th>
-                            <th>Retirada a Campo</th>
+                            <th>Estado / Ubicación</th>
                             <th class="text-center">Evidencia</th>
                         </tr>
                     </thead>
@@ -89,14 +89,14 @@
                             <td class="text-nowrap">
                                 <i class="bi bi-calendar3 text-muted me-1 small"></i>
                                 <span class="small fw-medium text-secondary">
-                                    {{ r['fecha_registro'] or r['fecha'] or r[1] or '—' }}
+                                    {{ r['fecha_registro'] or r['fecha'] or r['fecha_devuelto'] or '—' }}
                                 </span>
                             </td>
 
                             <!-- Máquina -->
                             <td>
                                 <span class="badge bg-secondary-subtle text-secondary-emphasis border badge-code">
-                                    {{ r['maquina'] or r['maquina_codigo'] or r['codigo_maquina'] or '—' }}
+                                    {{ r['maquina'] or r['maquina_codigo'] or '—' }}
                                 </span>
                             </td>
 
@@ -123,32 +123,30 @@
                                 </span>
                             </td>
 
-                            <!-- Retirada a Campo / Estado -->
+                            <!-- Estado: VERDE para Disponible / En Taller -->
                             <td>
-                                {% set est = r['estado'] or r['estado_solicitud'] or r['tipo_movimiento'] %}
-                                {% if est == 'Rentada' or est == 'Salida a Renta' %}
-                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill">
-                                        <i class="bi bi-truck me-1"></i> En Campo (Renta)
-                                    </span>
-                                {% elif est == 'Devuelto' or est == 'Entregado' %}
+                                {% set est = (r['estado'] or r['estado_solicitud'] or '')|string %}
+                                {% if 'Devuel' in est or 'Dispon' in est or 'Taller' in est %}
                                     <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">
-                                        <i class="bi bi-check-circle me-1"></i> En Taller
+                                        <i class="bi bi-check-circle me-1"></i> Disponible (En Taller)
                                     </span>
                                 {% else %}
-                                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle rounded-pill">
-                                        <i class="bi bi-arrow-right-circle me-1"></i> {{ est if est else 'Registrado' }}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill">
+                                        <i class="bi bi-truck me-1"></i> Retirada a Campo
                                     </span>
                                 {% endif %}
                             </td>
 
-                            <!-- Evidencia / Foto CORREGIDA -->
+                            <!-- Evidencia / Foto -->
                             <td class="text-center">
                                 {% set foto = r['foto_evidencia'] or r['foto_url'] or r['foto'] %}
                                 {% if foto and foto != 'Sin foto' and foto != 'None' and foto != '' %}
-                                    {% if foto.startswith('http') or foto.startswith('/') %}
+                                    {% if foto.startswith('http') or foto.startswith('/static/') %}
                                         {% set ruta_final = foto %}
+                                    {% elif foto.startswith('evidencias/') %}
+                                        {% set ruta_final = url_for('static', filename=foto) %}
                                     {% else %}
-                                        {% set ruta_final = url_for('static', filename='uploads/' ~ foto) %}
+                                        {% set ruta_final = url_for('static', filename='evidencias/' ~ foto) %}
                                     {% endif %}
                                     
                                     <a href="{{ ruta_final }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill py-1 px-3 fw-medium">
