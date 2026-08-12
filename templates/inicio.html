@@ -36,10 +36,19 @@
             background-color: #59319d;
             color: white;
         }
+
+        /* --- Correcciones para compatibilidad de Modales en Móviles --- */
+        .modal {
+            -webkit-overflow-scrolling: touch;
+            z-index: 1055 !important;
+        }
+        .modal-backdrop {
+            z-index: 1050 !important;
+        }
     </style>
 </head>
 <body>
-    <div class="container py-4 py-md-5">
+    <div class="container py-3 py-md-5">
 
         <!-- Barra superior: Estado de Sesión / Botón Admin -->
         <div class="d-flex justify-content-end mb-3">
@@ -58,7 +67,7 @@
             <div class="col-md-10 col-lg-8">
                 
                 <!-- Tarjeta Principal del Menú -->
-                <div class="card hero-card bg-white p-4 p-md-5 text-center mb-5">
+                <div class="card hero-card bg-white p-4 p-md-5 text-center mb-4 mb-md-5">
                     
                     <!-- Encabezado -->
                     <div class="mb-3 text-primary">
@@ -109,7 +118,7 @@
                                 </div>
                                 <div class="col-4">
                                     <button type="submit" class="btn btn-outline-success btn-sm w-100 fw-bold">
-                                        Subir Excel
+                                        Subir
                                     </button>
                                 </div>
                             </form>
@@ -119,7 +128,7 @@
                 </div>
 
                 <!-- Sección: Máquinas Disponibles para Rentar (PÚBLICA) -->
-                <div class="card hero-card bg-white p-4">
+                <div class="card hero-card bg-white p-3 p-md-4">
                     <h4 class="fw-bold text-dark mb-3"><i class="bi bi-truck me-2 text-primary"></i>Máquinas Listas para Renta</h4>
                     
                     <div class="table-responsive">
@@ -148,7 +157,7 @@
                                             <td class="fw-bold"><span class="badge bg-secondary">{{ cod_maquina }}</span></td>
                                             <td>
                                                 {{ marca_m }} 
-                                                <small class="text-muted">({{ modelo_m }})</small>
+                                                <small class="text-muted d-block d-md-inline">({{ modelo_m }})</small>
                                             </td>
                                             <td>
                                                 <span class="badge bg-success-subtle text-success border border-success-subtle">
@@ -156,37 +165,41 @@
                                                 </span>
                                             </td>
                                             <td class="text-end">
-                                                <button type="button" class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#modalRentar{{ loop.index }}">
+                                                <!-- Botón activador del Modal -->
+                                                <button type="button" class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#modalRentar-{{ loop.index }}">
                                                     <i class="bi bi-box-arrow-up-right me-1"></i> Rentar
                                                 </button>
 
-                                                <!-- Modal para Salida a Renta -->
-                                                <div class="modal fade" id="modalRentar{{ loop.index }}" tabindex="-1" aria-hidden="true">
+                                                <!-- Modal para Salida a Renta (Ubicado individualmente) -->
+                                                <div class="modal fade text-start" id="modalRentar-{{ loop.index }}" tabindex="-1" aria-labelledby="labelModal{{ loop.index }}" aria-hidden="true">
                                                     <div class="modal-dialog modal-dialog-centered">
-                                                        <div class="modal-content text-start">
+                                                        <div class="modal-content">
                                                             <div class="modal-header bg-primary text-white">
-                                                                <h5 class="modal-title"><i class="bi bi-truck me-2"></i>Salida a Renta: {{ cod_maquina }}</h5>
+                                                                <h5 class="modal-title fs-6 fw-bold" id="labelModal{{ loop.index }}">
+                                                                    <i class="bi bi-truck me-2"></i>Salida a Renta: {{ cod_maquina }}
+                                                                </h5>
                                                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                                                             </div>
                                                             <form action="/maquina/rentar/{{ cod_maquina }}" method="POST">
                                                                 <div class="modal-body">
                                                                     <div class="mb-3">
-                                                                        <label class="form-label fw-bold">¿A dónde se va? (Cliente / Obra / Destino)</label>
-                                                                        <input type="text" name="destino" class="form-control" placeholder="Ej. Obra Mina Norte / Empresa ABC" required>
+                                                                        <label class="form-label fw-bold small">¿A dónde se va? (Cliente / Obra / Destino)</label>
+                                                                        <input type="text" name="destino" class="form-control" placeholder="Ej. Obra Mina Norte / Empresa ABC" required autocomplete="off">
                                                                     </div>
                                                                     <div class="mb-3">
-                                                                        <label class="form-label fw-bold">Técnico que se la lleva / a cargo</label>
-                                                                        <input type="text" name="tecnico_cargo" class="form-control" placeholder="Nombre del técnico" required>
+                                                                        <label class="form-label fw-bold small">Técnico que se la lleva / a cargo</label>
+                                                                        <input type="text" name="tecnico_cargo" class="form-control" placeholder="Nombre del técnico" required autocomplete="off">
                                                                     </div>
                                                                 </div>
                                                                 <div class="modal-footer">
-                                                                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-                                                                    <button type="submit" class="btn btn-primary fw-bold">Confirmar Salida</button>
+                                                                    <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                                                                    <button type="submit" class="btn btn-primary btn-sm fw-bold px-3">Confirmar Salida</button>
                                                                 </div>
                                                             </form>
                                                         </div>
                                                     </div>
                                                 </div>
+
                                             </td>
                                         </tr>
                                     {% endif %}
@@ -223,7 +236,7 @@
                     <div class="modal-body">
                         <div class="mb-2">
                             <label class="form-label small fw-bold">Contraseña:</label>
-                            <input type="password" name="password" class="form-control form-control-sm" placeholder="Ingresa tu clave" required autofocus>
+                            <input type="password" name="password" class="form-control form-control-sm" placeholder="Ingresa tu clave" required>
                         </div>
                     </div>
                     <div class="modal-footer py-2">
@@ -234,7 +247,7 @@
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
+    <!-- Bootstrap JS (Esencial para que los modales respondan al toque) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
