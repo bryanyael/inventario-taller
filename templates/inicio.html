@@ -32,8 +32,10 @@
 <body>
     <div class="container py-5">
         <div class="row justify-content-center">
-            <div class="col-md-8 col-lg-6">
-                <div class="card hero-card bg-white p-4 p-md-5 text-center">
+            <div class="col-md-10 col-lg-8">
+                
+                <!-- Tarjeta Principal del Menú -->
+                <div class="card hero-card bg-white p-4 p-md-5 text-center mb-5">
                     
                     <!-- Encabezado -->
                     <div class="mb-3 text-primary">
@@ -53,6 +55,7 @@
                         <a href="/admin/registros" class="btn btn-dark btn-action">
                             <i class="bi bi-journal-text me-2"></i>Historial de Movimientos
                         </a>
+                        
                         <!-- Botón para Vaciar Inventario -->
                         <div class="mt-4 pt-3 border-top text-end">
                             <form action="/admin/limpiar_bd" method="POST" onsubmit="return confirm('¿Estás segura de que deseas borrar TODAS las máquinas y piezas?');">
@@ -81,8 +84,99 @@
                     </div>
 
                 </div>
+
+                <!-- Sección: Estado de Máquinas y Salida a Rentas -->
+                <div class="card hero-card bg-white p-4">
+                    <h4 class="fw-bold text-dark mb-3"><i class="bi bi-truck me-2 text-primary"></i>Estado de Máquinas y Rentas</h4>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Marca / Modelo</th>
+                                    <th>Estado</th>
+                                    <th class="text-end">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for m in maquinas %}
+                                <tr>
+                                    <td class="fw-bold"><span class="badge bg-secondary">{{ m.codigo if m.codigo is defined else m[0] }}</span></td>
+                                    <td>
+                                        {{ m.marca if m.marca is defined else m[1] }} 
+                                        <small class="text-muted">({{ m.modelo if m.modelo is defined else m[2] }})</small>
+                                    </td>
+                                    <td>
+                                        {% set estado_actual = m.estado if m.estado is defined else m[5] %}
+                                        {% if estado_actual == 'Rentada' %}
+                                            {% set dest = m.destino if m.destino is defined else m[6] %}
+                                            {% set tec = m.tecnico_cargo if m.tecnico_cargo is defined else m[7] %}
+                                            <span class="badge bg-warning text-dark border border-warning">
+                                                🚚 Rentada a: {{ dest if dest else 'N/A' }} ({{ tec if tec else 'N/A' }})
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                Disponible
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        {% set estado_actual = m.estado if m.estado is defined else m[5] %}
+                                        {% set cod_maquina = m.codigo if m.codigo is defined else m[0] %}
+                                        
+                                        {% if estado_actual != 'Rentada' %}
+                                            <button type="button" class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#modalRentar{{ loop.index }}">
+                                                <i class="bi bi-box-arrow-up-right me-1"></i> Rentar
+                                            </button>
+
+                                            <!-- Modal para Salida a Renta -->
+                                            <div class="modal fade" id="modalRentar{{ loop.index }}" tabindex="-1" aria-hidden="true">
+                                                <div class="modal-dialog modal-dialog-centered">
+                                                    <div class="modal-content text-start">
+                                                        <div class="modal-header bg-primary text-white">
+                                                            <h5 class="modal-title"><i class="bi bi-truck me-2"></i>Salida a Renta: {{ cod_maquina }}</h5>
+                                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                        </div>
+                                                        <form action="/maquina/rentar/{{ cod_maquina }}" method="POST">
+                                                            <div class="modal-body">
+                                                                <div class="mb-3">
+                                                                    <label class="form-label fw-bold">¿A dónde se va? (Cliente / Obra / Destino)</label>
+                                                                    <input type="text" name="destino" class="form-control" placeholder="Ej. Obra Mina Norte / Empresa ABC" required>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label class="form-label fw-bold">Técnico que se la lleva / a cargo</label>
+                                                                    <input type="text" name="tecnico_cargo" class="form-control" placeholder="Nombre del técnico" required>
+                                                                </div>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                                                                <button type="submit" class="btn btn-primary fw-bold">Confirmar Salida</button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <button class="btn btn-sm btn-outline-secondary rounded-pill disabled" disabled>En Renta</button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4 text-muted">No hay máquinas registradas en el sistema.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
+
+    <!-- Bootstrap JS (Necesario para los Modales) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
