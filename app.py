@@ -214,29 +214,49 @@ def solicitar(codigo, pieza_id):
 
 # Módulos de piezas sueltas
 @app.route('/piezas/tomar/<int:id_pieza>', methods=['POST'])
+@app.route('/piezas/tomar/<int:id_pieza>', methods=['POST'])
 def tomar_pieza_suelta(id_pieza):
     cantidad_a_tomar = int(request.form.get('cantidad', 1))
-    tecnico = request.form.get('tecnico')
-    motivo = request.form.get('motivo')
+    tecnico = request.form.get('tecnico', 'Desconocido')
+    motivo = request.form.get('motivo', 'Mantenimiento')
 
     conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
-    # 1. Obtenemos el nombre y stock actual de la pieza específica
-    c.execute("SELECT stock, nombre, codigo FROM piezas_sueltas WHERE id = ?", (id_pieza,))
-    row = c.fetchone()
+    # 1. Buscamos la pieza de forma segura
+    c.execute("SELECT * FROM piezas_sueltas WHERE id = ?", (id_pieza,))
+    pieza = c.fetchone()
 
-    if row:
-        stock_actual = row[0] if row[0] is not None else 1
-        nombre_pieza = row[1]
-        codigo_pieza = row[2] or f"PS-{id_pieza}"
+    if pieza:
+        # Detectamos si el stock está en la columna 'stock' o 'cantidad'
+        stock_actual = 0
+        keys = pieza.keys() if hasattr(pieza, 'keys') else []
+        
+        if "stock" in keys and pieza["stock"] is not None:
+            stock_actual = int(pieza["stock"])
+        elif "cantidad" in keys and pieza["cantidad"] is not None:
+            stock_actual = int(pieza["cantidad"])
+        else:
+            stock_actual = 1 # Valor por defecto si viniera vacío
+
+        nombre_pieza = pieza["nombre"] if "nombre" in keys else "Pieza"
+        codigo_pieza = pieza["codigo"] if "codigo" in keys and pieza["codigo"] else f"PS-{id_pieza}"
+        
         nuevo_stock = max(0, stock_actual - cantidad_a_tomar)
 
-        # 2. Actualizamos el stock restando la cantidad retirada
-        c.execute("UPDATE piezas_sueltas SET stock = ? WHERE id = ?", (nuevo_stock, id_pieza))
+        # 2. Actualizamos ambas columnas posibles en la base de datos para evitar desincronizaciones
+        try:
+            c.execute("UPDATE piezas_sueltas SET stock = ? WHERE id = ?", (nuevo_stock, id_pieza))
+        except sqlite3.OperationalError:
+            pass
 
-        # 3. REGISTRAMOS EL MOVIMIENTO EN EL HISTORIAL (Asegúrate de que tu tabla de historial se llame 'historial' o ajusta el nombre)
-        # Aquí guardamos la fecha/hora actual, el técnico, el motivo y el nombre de la pieza
+        try:
+            c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, id_pieza))
+        except sqlite3.OperationalError:
+            pass
+
+        # 3. Registramos el movimiento en el historial
         from datetime import datetime
         fecha_actual = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
@@ -246,7 +266,7 @@ def tomar_pieza_suelta(id_pieza):
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (fecha_actual, "REPUESTO-SUELTO", f"{codigo_pieza} - {nombre_pieza} (Cantidad: {cantidad_a_tomar})", tecnico, motivo, "Retirada a Campo"))
         except sqlite3.OperationalError:
-            pass # Si tu tabla de historial tiene otro nombre o estructura, evita que falle la app
+            pass
 
         conn.commit()
 
