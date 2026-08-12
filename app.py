@@ -56,24 +56,15 @@ def init_db():
         )
     ''')
 
-    conn.commit()
-    conn.close()
-# Código para asegurar que la columna existe en SQLite
-def actualizar_db():
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    # Garantizamos que la columna foto_evidencia exista si la BD fue creada con una versión antigua
     try:
         cursor.execute("ALTER TABLE historial ADD COLUMN foto_evidencia TEXT;")
-        conn.commit()
-        print("Columna foto_evidencia agregada con éxito.")
-    except Exception as e:
-        # Si la columna ya existe, SQLite lanzará una excepción que simplemente ignoramos
-        print("La columna foto_evidencia ya existe o no fue necesario agregarla:", e)
-    finally:
-        conn.close()
+    except sqlite3.OperationalError:
+        pass # La columna ya existe
 
-# Ejecuta la función al iniciar la app
-actualizar_db()
+    conn.commit()
+    conn.close()
+
 # Inicializamos la base de datos al arrancar
 init_db()
 
@@ -266,12 +257,6 @@ def ver_historial():
     try:
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
-        
-        # Asegurarse de que exista la columna foto_evidencia por si la BD es antigua
-        try:
-            c.execute("ALTER TABLE historial ADD COLUMN foto_evidencia TEXT")
-        except sqlite3.OperationalError:
-            pass # Ya existe la columna
 
         c.execute("""SELECT id, maquina_codigo, pieza_nombre, tecnico, motivo, 
                             fecha_regreso, estado_solicitud, fecha_devuelto, foto_evidencia, fecha_registro 
