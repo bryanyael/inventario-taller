@@ -88,20 +88,22 @@
                             <!-- Fecha -->
                             <td class="text-nowrap">
                                 <i class="bi bi-calendar3 text-muted me-1 small"></i>
-                                <span class="small fw-medium text-secondary">{{ r.fecha_registro if r.fecha_registro else r[1] }}</span>
+                                <span class="small fw-medium text-secondary">
+                                    {{ r['fecha_registro'] or r['fecha'] or r[1] or '—' }}
+                                </span>
                             </td>
 
                             <!-- Máquina -->
                             <td>
                                 <span class="badge bg-secondary-subtle text-secondary-emphasis border badge-code">
-                                    {{ r.maquina if r.maquina else (r.maquina_codigo if r.maquina_codigo else '—') }}
+                                    {{ r['maquina'] or r['maquina_codigo'] or r['codigo_maquina'] or '—' }}
                                 </span>
                             </td>
 
                             <!-- Pieza -->
                             <td>
-                                {% set pieza_val = r.pieza if r.pieza else r.pieza_nombre %}
-                                {% if pieza_val and pieza_val != '—' and pieza_val != '' %}
+                                {% set pieza_val = r['pieza'] or r['pieza_nombre'] %}
+                                {% if pieza_val and pieza_val != '—' and pieza_val != 'None' and pieza_val != '' %}
                                     <span class="fw-semibold text-dark"><i class="bi bi-gear me-1 text-primary"></i>{{ pieza_val }}</span>
                                 {% else %}
                                     <span class="text-muted">—</span>
@@ -111,19 +113,19 @@
                             <!-- Técnico -->
                             <td class="fw-medium text-dark">
                                 <i class="bi bi-person-circle text-muted me-1"></i>
-                                {{ r.tecnico if r.tecnico else '—' }}
+                                {{ r['tecnico'] or '—' }}
                             </td>
 
                             <!-- Motivo / Destino -->
                             <td>
                                 <span class="text-muted small">
-                                    {{ r.motivo if r.motivo else '—' }}
+                                    {{ r['motivo'] or r['destino'] or '—' }}
                                 </span>
                             </td>
 
-                            <!-- COLUMNA NUEVA: Retirada a Campo / Estado -->
+                            <!-- Retirada a Campo / Estado -->
                             <td>
-                                {% set est = r.estado if r.estado else r.estado_solicitud %}
+                                {% set est = r['estado'] or r['estado_solicitud'] or r['tipo_movimiento'] %}
                                 {% if est == 'Rentada' or est == 'Salida a Renta' %}
                                     <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill">
                                         <i class="bi bi-truck me-1"></i> En Campo (Renta)
@@ -139,11 +141,17 @@
                                 {% endif %}
                             </td>
 
-                            <!-- Evidencia / Foto -->
+                            <!-- Evidencia / Foto CORREGIDA -->
                             <td class="text-center">
-                                {% set foto = r.foto_url if r.foto_url else r.foto_evidencia %}
-                                {% if foto and foto != 'Sin foto' and foto != '' %}
-                                    <a href="{{ foto }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill py-0 px-2 small">
+                                {% set foto = r['foto_evidencia'] or r['foto_url'] or r['foto'] %}
+                                {% if foto and foto != 'Sin foto' and foto != 'None' and foto != '' %}
+                                    {% if foto.startswith('http') or foto.startswith('/') %}
+                                        {% set ruta_final = foto %}
+                                    {% else %}
+                                        {% set ruta_final = url_for('static', filename='uploads/' ~ foto) %}
+                                    {% endif %}
+                                    
+                                    <a href="{{ ruta_final }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill py-1 px-3 fw-medium">
                                         <i class="bi bi-image me-1"></i> Ver Foto
                                     </a>
                                 {% else %}
