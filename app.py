@@ -212,7 +212,7 @@ def solicitar(codigo, pieza_id):
 
     return render_template("solicitud.html", maquina=maquina_info, codigo=codigo, pieza=pieza_info)
 
-@app.route('/piezas/tomar/<codigo>', methods=['POST'])
+@app.route('/piezas//<codigo>', methods=['POST'])
 def tomar_pieza_suelta(codigo):
     tecnico = request.form.get('tecnico', 'Taller')
     motivo = request.form.get('motivo', 'Uso en taller / campo')
@@ -410,54 +410,7 @@ def piezas_sueltas():
     piezas = c.fetchall()
     conn.close()
     return render_template('piezas_sueltas.html', piezas=piezas)
-@app.route('/piezas/tomar/<codigo>', methods=['POST'])
-def tomar_pieza_suelta(codigo):
-    tecnico = request.form.get('tecnico', 'Taller')
-    motivo = request.form.get('motivo', 'Uso en taller / campo')
-    try:
-        cantidad_tomada = int(request.form.get('cantidad', 1))
-    except ValueError:
-        cantidad_tomada = 1
 
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-
-    # Buscar la pieza por código o ID
-    c.execute("SELECT id, nombre, COALESCE(stock, cantidad, 0) FROM piezas_sueltas WHERE codigo = ? OR id = ?", (codigo, codigo))
-    pieza = c.fetchone()
-
-    if pieza:
-        pieza_id, nombre_pieza, stock_actual = pieza[0], pieza[1], pieza[2]
-
-        # Solo descuenta si hay suficiente stock
-        if stock_actual >= cantidad_tomada:
-            nuevo_stock = stock_actual - cantidad_tomada
-            
-            # Actualizamos tanto la columna 'stock' como 'cantidad' si ambas existen
-            try:
-                c.execute("UPDATE piezas_sueltas SET stock = ? WHERE id = ?", (nuevo_stock, pieza_id))
-            except sqlite3.OperationalError:
-                c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
-
-            # Registrar en Historial
-            fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            motivo_completo = f"{motivo} (Cantidad: {cantidad_tomada})"
-            
-            try:
-                c.execute("""INSERT INTO historial 
-                             (maquina_codigo, pieza_id, tecnico, motivo, estado_solicitud, fecha_registro)
-                             VALUES (?, ?, ?, ?, 'Entregado', ?)""",
-                          ('REPUESTO-SUELTO', pieza_id, tecnico, motivo_completo, fecha_actual))
-            except sqlite3.OperationalError:
-                c.execute("""INSERT INTO historial 
-                             (maquina_codigo, pieza_id, tecnico, motivo, estado_solicitud, fecha)
-                             VALUES (?, ?, ?, ?, 'Entregado', ?)""",
-                          ('REPUESTO-SUELTO', pieza_id, tecnico, motivo_completo, fecha_actual))
-
-            conn.commit()
-
-    conn.close()
-    return redirect('/piezas_sueltas')
 
 @app.route('/admin/agregar_pieza_suelta', methods=['POST'])
 def agregar_pieza_suelta():
