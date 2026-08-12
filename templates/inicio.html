@@ -37,13 +37,13 @@
             color: white;
         }
 
-        /* --- Correcciones para compatibilidad de Modales en Móviles --- */
-        .modal {
-            -webkit-overflow-scrolling: touch;
-            z-index: 1055 !important;
-        }
+        /* --- Correcciones de capas (Z-Index) para teléfonos --- */
         .modal-backdrop {
+            z-index: 1040 !important;
+        }
+        .modal {
             z-index: 1050 !important;
+            -webkit-overflow-scrolling: touch;
         }
     </style>
 </head>
@@ -165,41 +165,10 @@
                                                 </span>
                                             </td>
                                             <td class="text-end">
-                                                <!-- Botón activador del Modal -->
+                                                <!-- Botón que activa el modal -->
                                                 <button type="button" class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#modalRentar-{{ loop.index }}">
                                                     <i class="bi bi-box-arrow-up-right me-1"></i> Rentar
                                                 </button>
-
-                                                <!-- Modal para Salida a Renta (Ubicado individualmente) -->
-                                                <div class="modal fade text-start" id="modalRentar-{{ loop.index }}" tabindex="-1" aria-labelledby="labelModal{{ loop.index }}" aria-hidden="true">
-                                                    <div class="modal-dialog modal-dialog-centered">
-                                                        <div class="modal-content">
-                                                            <div class="modal-header bg-primary text-white">
-                                                                <h5 class="modal-title fs-6 fw-bold" id="labelModal{{ loop.index }}">
-                                                                    <i class="bi bi-truck me-2"></i>Salida a Renta: {{ cod_maquina }}
-                                                                </h5>
-                                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                            </div>
-                                                            <form action="/maquina/rentar/{{ cod_maquina }}" method="POST">
-                                                                <div class="modal-body">
-                                                                    <div class="mb-3">
-                                                                        <label class="form-label fw-bold small">¿A dónde se va? (Cliente / Obra / Destino)</label>
-                                                                        <input type="text" name="destino" class="form-control" placeholder="Ej. Obra Mina Norte / Empresa ABC" required autocomplete="off">
-                                                                    </div>
-                                                                    <div class="mb-3">
-                                                                        <label class="form-label fw-bold small">Técnico que se la lleva / a cargo</label>
-                                                                        <input type="text" name="tecnico_cargo" class="form-control" placeholder="Nombre del técnico" required autocomplete="off">
-                                                                    </div>
-                                                                </div>
-                                                                <div class="modal-footer">
-                                                                    <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancelar</button>
-                                                                    <button type="submit" class="btn btn-primary btn-sm fw-bold px-3">Confirmar Salida</button>
-                                                                </div>
-                                                            </form>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
                                             </td>
                                         </tr>
                                     {% endif %}
@@ -223,6 +192,45 @@
             </div>
         </div>
     </div>
+
+    <!-- ========================================== -->
+    <!-- MODALES DE RENTA (Ubicados fuera de la tabla para evitar bloqueos) -->
+    <!-- ========================================== -->
+    {% for m in maquinas %}
+        {% set estado_actual = m.estado if m.estado is defined else m[5] %}
+        {% if estado_actual != 'Rentada' %}
+            {% set cod_maquina = m.codigo if m.codigo is defined else m[0] %}
+            
+            <div class="modal fade text-start" id="modalRentar-{{ loop.index }}" tabindex="-1" aria-labelledby="labelModal{{ loop.index }}" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title fs-6 fw-bold" id="labelModal{{ loop.index }}">
+                                <i class="bi bi-truck me-2"></i>Salida a Renta: {{ cod_maquina }}
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form action="/maquina/rentar/{{ cod_maquina }}" method="POST">
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold small">¿A dónde se va? (Cliente / Obra / Destino)</label>
+                                    <input type="text" name="destino" class="form-control" placeholder="Ej. Obra Mina Norte / Empresa ABC" required autocomplete="off">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold small">Técnico que se la lleva / a cargo</label>
+                                    <input type="text" name="tecnico_cargo" class="form-control" placeholder="Nombre del técnico" required autocomplete="off">
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="btn btn-primary btn-sm fw-bold px-3">Confirmar Salida</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    {% endfor %}
 
     <!-- Modal para Clave de Administrador -->
     <div class="modal fade" id="modalLoginAdmin" tabindex="-1" aria-hidden="true">
