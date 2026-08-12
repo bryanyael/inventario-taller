@@ -74,35 +74,38 @@
                     <thead>
                         <tr>
                             <th>Fecha y Hora</th>
-                            <th>Máquina</th>
-                            <th>Pieza</th>
+                            <th>Máquina / Origen</th>
+                            <th>Pieza / Repuesto</th>
                             <th>Técnico</th>
                             <th>Motivo / Destino</th>
                             <th>Estado / Ubicación</th>
                             <th class="text-center">Evidencia</th>
+                            <th class="text-center">Acción</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for r in registros %}
+                        {% set est = (r['estado_solicitud'] or r['estado'] or '')|string %}
+                        {% set es_devuelto = 'Devuel' in est or 'Dispon' in est or 'Taller' in est %}
                         <tr>
                             <!-- Fecha -->
                             <td class="text-nowrap">
                                 <i class="bi bi-calendar3 text-muted me-1 small"></i>
                                 <span class="small fw-medium text-secondary">
-                                    {{ r['fecha_registro'] or r['fecha'] or r['fecha_devuelto'] or '—' }}
+                                    {{ r['fecha_solicitud'] or r['fecha_registro'] or r['fecha'] or r['fecha_devuelto'] or '—' }}
                                 </span>
                             </td>
 
-                            <!-- Máquina -->
+                            <!-- Máquina / Origen -->
                             <td>
                                 <span class="badge bg-secondary-subtle text-secondary-emphasis border badge-code">
-                                    {{ r['maquina'] or r['maquina_codigo'] or '—' }}
+                                    {{ r['maquina_codigo'] or r['maquina'] or 'REPUESTO-SUELTO' }}
                                 </span>
                             </td>
 
-                            <!-- Pieza -->
+                            <!-- Pieza / Repuesto -->
                             <td>
-                                {% set pieza_val = r['pieza'] or r['pieza_nombre'] %}
+                                {% set pieza_val = r['pieza_nombre'] or r['pieza'] %}
                                 {% if pieza_val and pieza_val != '—' and pieza_val != 'None' and pieza_val != '' %}
                                     <span class="fw-semibold text-dark"><i class="bi bi-gear me-1 text-primary"></i>{{ pieza_val }}</span>
                                 {% else %}
@@ -123,10 +126,9 @@
                                 </span>
                             </td>
 
-                            <!-- Estado: VERDE para Disponible / En Taller -->
+                            <!-- Estado: VERDE para Disponible / AMARILLO para Retirada a Campo -->
                             <td>
-                                {% set est = (r['estado'] or r['estado_solicitud'] or '')|string %}
-                                {% if 'Devuel' in est or 'Dispon' in est or 'Taller' in est %}
+                                {% if es_devuelto %}
                                     <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">
                                         <i class="bi bi-check-circle me-1"></i> Disponible (En Taller)
                                     </span>
@@ -156,10 +158,46 @@
                                     <span class="text-muted small"><i class="bi bi-camera-video-off me-1"></i>Sin foto</span>
                                 {% endif %}
                             </td>
+
+                            <!-- Acción: Botón Devolver -->
+                            <td class="text-center">
+                                {% if not es_devuelto %}
+                                    <button class="btn btn-sm btn-success rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#modalDevolver{{ r['id'] }}">
+                                        <i class="bi bi-arrow-return-left me-1"></i> Devolver
+                                    </button>
+
+                                    <!-- Modal Devolución -->
+                                    <div class="modal fade text-start" id="modalDevolver{{ r['id'] }}" tabindex="-1">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content border-0 shadow">
+                                                <form action="/devolver_pieza/{{ r['id'] }}" method="POST" enctype="multipart/form-data">
+                                                    <div class="modal-header bg-success text-white">
+                                                        <h5 class="modal-title fw-bold"><i class="bi bi-arrow-return-left me-2"></i>Devolver Repuesto</h5>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body p-4">
+                                                        <p class="mb-3 text-secondary">Vas a registrar el retorno de: <strong class="text-dark">{{ pieza_val }}</strong></p>
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold small text-muted">EVIDENCIA EN FOTO (OPCIONAL)</label>
+                                                            <input type="file" name="foto_evidencia" class="form-control" accept="image/*" capture="environment">
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer border-0 bg-light">
+                                                        <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancelar</button>
+                                                        <button type="submit" class="btn btn-success rounded-pill px-4">Confirmar Devolución</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted small"><i class="bi bi-check-all me-1"></i>Completado</span>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="7" class="text-center py-5 text-muted">
+                            <td colspan="8" class="text-center py-5 text-muted">
                                 <i class="bi bi-inbox display-6 d-block mb-2 text-secondary opacity-50"></i>
                                 No hay registros de movimientos en el historial.
                             </td>
