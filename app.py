@@ -449,13 +449,25 @@ def ver_historial():
                             fecha_regreso AS regreso_est, 
                             estado_solicitud AS estado, 
                             fecha_devuelto AS devuelto_el, 
-                            foto_evidencia AS foto_url,
-                            foto_evidencia AS foto_evidencia
+                            foto_evidencia
                      FROM historial 
                      ORDER BY id DESC""")
-        registros = c.fetchall()
+        rows = c.fetchall()
         conn.close()
-        
+
+        # Limpiamos el nombre de la foto para asegurarnos de que solo pase el archivo
+        registros = []
+        for r in rows:
+            reg = dict(r)
+            foto = reg.get('foto_evidencia')
+            if foto and foto != 'None' and foto != 'Sin foto':
+                # Si viene con "evidencias/foto.jpg" cortamos para dejar solo "foto.jpg"
+                if '/' in foto:
+                    reg['foto_evidencia'] = foto.split('/')[-1]
+                elif '\\' in foto:
+                    reg['foto_evidencia'] = foto.split('\\')[-1]
+            registros.append(reg)
+
         try:
             return render_template('historial.html', registros=registros, historial=registros)
         except:
@@ -464,8 +476,6 @@ def ver_historial():
     except Exception as e:
         print(f"Error al cargar historial: {e}")
         return f"Error al cargar el historial: {str(e)}", 500
-
-
 @app.route('/admin/limpiar_bd', methods=['POST'])
 def limpiar_bd():
     try:
