@@ -31,23 +31,21 @@ def init_db():
             estado TEXT
         )
     ''')
-    
-# NUEVA TABLA: Piezas sueltas / Stock general
+ # Tabla de piezas asociadas a máquinas
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS piezas_sueltas (
+        CREATE TABLE IF NOT EXISTS piezas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL,
-            modelos_compatibles TEXT,
-            codigo_parte TEXT,
-            cantidad INTEGER DEFAULT 1,
-            ubicacion TEXT DEFAULT 'Taller',
-            estado TEXT DEFAULT 'Nuevo'
+            maquina_codigo TEXT,
+            nombre TEXT,
+            codigo_pieza TEXT,
+            estado TEXT,
+            disponible INTEGER DEFAULT 1,
+            FOREIGN KEY (maquina_codigo) REFERENCES maquinas (codigo)
         )
     ''')
-    
-    # NUEVA TABLA: Piezas sueltas / Stock general
+  # NUEVA TABLA: Piezas sueltas / Stock general
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS  (
+        CREATE TABLE IF NOT EXISTS piezas_sueltas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL,
             modelos_compatibles TEXT,
