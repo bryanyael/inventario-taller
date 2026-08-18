@@ -353,7 +353,7 @@ def devolver_pieza_suelta(pieza_id):
     except (ValueError, TypeError):
         cantidad_devuelta = 1
 
-    # Procesar la foto opcional
+    # Procesar la foto
     foto_nombre = None
     if 'foto' in request.files:
         file = request.files['foto']
@@ -367,62 +367,47 @@ def devolver_pieza_suelta(pieza_id):
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
+    # --- CORRECCIÓN IMPORTANTE: Asegurar que la columna existe ---
+    try:
+        c.execute("ALTER TABLE historial ADD COLUMN evidencia TEXT")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass # La columna ya existía, seguimos normal
+
     # 1. Obtener datos de la pieza
     c.execute("SELECT * FROM piezas_sueltas WHERE id = ?", (pieza_id,))
     pieza = c.fetchone()
-
     if not pieza:
         conn.close()
         return "Pieza no encontrada", 404
 
     pieza_dict = dict(pieza)
-    cantidad_actual = int(pieza_dict.get('cantidad') if pieza_dict.get('cantidad') is not None else pieza_dict.get('stock', 0))
+    cantidad_actual = int(pieza_dict.get('cantidad', 0))
 
-    # 2. Si sigue sirviendo, sumamos al stock físico
+    # 2. Actualizar stock
     if sigue_sirviendo == 'si':
         nuevo_stock = cantidad_actual + cantidad_devuelta
         c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
     
-    # 3. Definir el texto del estado según tu elección
-    if sigue_sirviendo == 'si':
-        estado_texto = "Disponible (En Taller)"
-    else:
-        estado_texto = "Inservible / Dañado"
+    estado_texto = "Disponible (En Taller)" if sigue_sirviendo == 'si' else "Inservible / Dañado"
+    nuevo_motivo = f"Devolución: {cantidad_devuelta}"
 
-    nuevo_motivo = f"Devolución registrada. Cantidad: {cantidad_devuelta}"
-
-    # 4. Actualizar el registro pendiente en el historial (para que sea una sola fila limpia)
-    c.execute('''SELECT id FROM historial 
-                 WHERE pieza_id = ? AND (estado_solicitud LIKE '%Retirada%' OR estado_solicitud LIKE '%Pendiente%')
+    # 3. Buscar registro pendiente y actualizar
+    c.execute('''SELECT id FROM historial WHERE pieza_id = ? AND estado_solicitud IN ('Retirada', 'Pendiente') 
                  ORDER BY id DESC LIMIT 1''', (pieza_id,))
-    registro_previo = c.fetchone()
+    registro = c.fetchone()
 
-    if registro_previo:
+    if registro:
+        # Si hay foto, incluimos la columna evidencia
         if foto_nombre:
-            c.execute('''UPDATE historial 
-                         SET motivo = ?, estado_solicitud = ?, accion = 'Completado', evidencia = ?
-                         WHERE id = ?''', 
-                      (nuevo_motivo, estado_texto, foto_nombre, registro_previo['id']))
+            c.execute("UPDATE historial SET motivo=?, estado_solicitud=?, accion='Completado', evidencia=? WHERE id=?", 
+                      (nuevo_motivo, estado_texto, foto_nombre, registro['id']))
         else:
-            c.execute('''UPDATE historial 
-                         SET motivo = ?, estado_solicitud = ?, accion = 'Completado'
-                         WHERE id = ?''', 
-                      (nuevo_motivo, estado_texto, registro_previo['id']))
-    else:
-        # Plan de respaldo si no encuentra la línea previa
-        c.execute('''SELECT id FROM historial WHERE pieza_id = ? ORDER BY id DESC LIMIT 1''', (pieza_id,))
-        ultimo_cualquiera = c.fetchone()
-        if ultimo_cualquiera:
-            if foto_nombre:
-                c.execute('''UPDATE historial SET motivo = ?, estado_solicitud = ?, evidencia = ? WHERE id = ?''',
-                          (nuevo_motivo, estado_texto, foto_nombre, ultimo_cualquiera['id']))
-            else:
-                c.execute('''UPDATE historial SET motivo = ?, estado_solicitud = ? WHERE id = ?''',
-                          (nuevo_motivo, estado_texto, ultimo_cualquiera['id']))
-
+            c.execute("UPDATE historial SET motivo=?, estado_solicitud=?, accion='Completado' WHERE id=?", 
+                      (nuevo_motivo, estado_texto, registro['id']))
+    
     conn.commit()
     conn.close()
-
     return redirect(url_for('piezas_sueltas'))
 
 @app.route('/usar_pieza_suelta/<int:pieza_id>', methods=['POST'])
