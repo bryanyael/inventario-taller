@@ -11,23 +11,11 @@
         body { background-color: #f8f9fa; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
         .card-custom { border: none; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
         
-        /* Asegura que los modales floten correctamente sobre la pantalla completa */
-        .modal {
-            z-index: 1056 !important;
-        }
-        .modal-backdrop {
-            z-index: 1055 !important;
-            opacity: 0.5 !important;
-        }
-        body.modal-open {
-            overflow: auto !important;
-            padding-right: 0 !important;
-        }
+        .modal { z-index: 1056 !important; }
+        .modal-backdrop { z-index: 1055 !important; opacity: 0.5 !important; }
+        body.modal-open { overflow: auto !important; padding-right: 0 !important; }
         @media (max-width: 576px) {
-            .modal-dialog {
-                margin: 0.5rem;
-                max-width: calc(100% - 1rem);
-            }
+            .modal-dialog { margin: 0.5rem; max-width: calc(100% - 1rem); }
         }
     </style>
 </head>
@@ -58,13 +46,17 @@
                     </thead>
                     <tbody>
                         {% for pieza in piezas %}
-                        {% set stock_disp = (pieza.cantidad or pieza.stock or 0)|int %}
+                        <!-- Capturamos de forma segura las columnas reales de tu base de datos -->
+                        {% set p_codigo = pieza['codigo'] or pieza['codigo_pieza'] or pieza['id'] %}
+                        {% set p_nombre = pieza['nombre'] or pieza['nombre_pieza'] or pieza['pieza'] or 'Pieza sin nombre' %}
+                        {% set p_ubicacion = pieza['ubicacion'] or pieza['ubicacion_pieza'] or 'Estante General' %}
+                        {% set stock_disp = (pieza['stock'] or pieza['cantidad'] or pieza['stock_disponible'] or 0)|int %}
                         <tr>
-                            <td class="fw-bold"><span class="badge bg-secondary">{{ pieza.codigo or pieza.id }}</span></td>
-                            <td>{{ pieza.nombre }}</td>
-                            <td><i class="bi bi-geo-alt me-1 text-muted"></i>{{ pieza.ubicacion or 'Estante General' }}</td>
+                            <td class="fw-bold"><span class="badge bg-secondary">{{ p_codigo }}</span></td>
+                            <td>{{ p_nombre }}</td>
+                            <td><i class="bi bi-geo-alt me-1 text-muted"></i>{{ p_ubicacion }}</td>
                             
-                            <!-- Stock Disponible -->
+                            <!-- Stock Disponible Real -->
                             <td class="text-center">
                                 {% if stock_disp > 0 %}
                                     <span class="badge bg-success fs-6">{{ stock_disp }} uds.</span>
@@ -76,7 +68,7 @@
                             <!-- Acción: Botón disparador -->
                             <td class="text-end">
                                 {% if stock_disp > 0 %}
-                                    <button type="button" class="btn btn-sm btn-warning fw-bold rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalTomar{{ pieza.id }}">
+                                    <button type="button" class="btn btn-sm btn-warning fw-bold rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalTomar{{ pieza['id'] }}">
                                         <i class="bi bi-box-arrow-down me-1"></i> Tomar Pieza
                                     </button>
                                 {% else %}
@@ -97,18 +89,19 @@
         </div>
     </div>
 
-    <!-- MODALES FUERA DE LA TABLA (Para que floten limpios en la pantalla del celular) -->
+    <!-- MODALES FUERA DE LA TABLA -->
     {% for pieza in piezas %}
-    {% set stock_disp = (pieza.cantidad or pieza.stock or 0)|int %}
+    {% set p_nombre = pieza['nombre'] or pieza['nombre_pieza'] or pieza['pieza'] or 'Pieza' %}
+    {% set stock_disp = (pieza['stock'] or pieza['cantidad'] or pieza['stock_disponible'] or 0)|int %}
     {% if stock_disp > 0 %}
-    <div class="modal fade text-start" id="modalTomar{{ pieza.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal fade text-start" id="modalTomar{{ pieza['id'] }}" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow">
                 <div class="modal-header bg-warning text-dark">
-                    <h5 class="modal-title fw-bold fs-6"><i class="bi bi-box-arrow-down me-2"></i>{{ pieza.nombre }}</h5>
+                    <h5 class="modal-title fw-bold fs-6"><i class="bi bi-box-arrow-down me-2"></i>{{ p_nombre }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form action="{{ url_for('usar_pieza_suelta', pieza_id=pieza.id) }}" method="POST">
+                <form action="{{ url_for('usar_pieza_suelta', pieza_id=pieza['id']) }}" method="POST">
                     <div class="modal-body p-3">
                         <div class="mb-3">
                             <label class="form-label fw-bold small">Cantidad a tomar (Máx: {{ stock_disp }}):</label>
