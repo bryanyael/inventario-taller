@@ -452,12 +452,16 @@ def piezas_sueltas():
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
-    # Seleccionamos todas las columnas necesarias para que el HTML no falle buscando 'codigo' o 'estado'
-    c.execute("SELECT id, codigo, nombre, ubicacion, cantidad, estado FROM piezas_sueltas")
+    # Solo seleccionamos las piezas que tengan stock disponible mayor a 0
+    try:
+        c.execute("SELECT * FROM piezas_sueltas WHERE stock > 0 ORDER BY id DESC")
+    except sqlite3.OperationalError:
+        c.execute("SELECT * FROM piezas_sueltas WHERE cantidad > 0 ORDER BY id DESC")
+        
     piezas = c.fetchall()
     conn.close()
-    
     return render_template('piezas_sueltas.html', piezas=piezas)
+
 # ==========================================
 @app.route('/historial')
 @app.route('/registros')
