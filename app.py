@@ -596,24 +596,27 @@ def cargar_excel():
                     except Exception as ex:
                         print(f"Columna {col_nombre} ya existe o no requirió cambio: {ex}")
 
-            # 3. Insertar registros del Excel
-            for _, row in df.iterrows():
+            # 3. Insertar registros del Excel de manera segura con códigos únicos
+            for i, (_, row) in enumerate(df.iterrows(), start=1):
                 nombre = str(row.get('nombre', '')).strip()
                 if nombre and nombre.lower() != 'nan':
                     modelo = str(row.get('Modelo de procedencia', '')).strip()
                     ubicacion = str(row.get('ubicacion', 'Taller')).strip()
                     
+                    # Manejo seguro por si el stock trae texto o viene vacío
+                    raw_stock = row.get('stock', 1)
                     try:
-                        stock = int(row.get('stock', 1))
+                        stock = int(raw_stock)
                     except (ValueError, TypeError):
-                        stock = 1
+                        stock = 10 if str(raw_stock).strip().lower() in ['varias', 'varios'] else 1
 
                     if modelo and modelo.lower() != 'nan':
                         nombre_completo = f"{nombre} ({modelo})"
                     else:
                         nombre_completo = nombre
 
-                    cod_suelta = f"PS-{datetime.now().strftime('%M%S%f')[:6]}"
+                    # Código único basado en el número de fila 'i'
+                    cod_suelta = f"PS-{i}"
 
                     c.execute("""INSERT INTO piezas_sueltas (codigo, nombre, ubicacion, stock)
                                  VALUES (?, ?, ?, ?)""",
@@ -704,11 +707,11 @@ def cargar_excel():
 
                             if col_cod_pz:
                                 query = f'''INSERT INTO piezas ({col_fk}, nombre, {col_cod_pz}, disponible, estado)
-                                           VALUES (?, ?, ?, ?, ?)'''
+                                            VALUES (?, ?, ?, ?, ?)'''
                                 c.execute(query, (codigo_maq, nombre_pieza, cod_pieza, disponible, estado_texto))
                             else:
                                 query = f'''INSERT INTO piezas ({col_fk}, nombre, disponible, estado)
-                                           VALUES (?, ?, ?, ?)'''
+                                            VALUES (?, ?, ?, ?)'''
                                 c.execute(query, (codigo_maq, nombre_pieza, disponible, estado_texto))
 
                             idx_pieza += 1
