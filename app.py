@@ -454,8 +454,8 @@ def piezas_sueltas():
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
-    # Eliminamos 'codigo' de la consulta si no existe en la tabla
-    c.execute("SELECT id, nombre, ubicacion, cantidad FROM piezas_sueltas")
+    # Seleccionamos todas las columnas necesarias para que el HTML no falle buscando 'codigo' o 'estado'
+    c.execute("SELECT id, codigo, nombre, ubicacion, cantidad, estado FROM piezas_sueltas")
     piezas = c.fetchall()
     conn.close()
     
