@@ -354,7 +354,7 @@ def devolver_pieza_suelta(pieza_id):
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
-    # 1. Obtener datos de la pieza
+    # 1. Obtener datos de la pieza para sumar stock si sirve
     c.execute("SELECT * FROM piezas_sueltas WHERE id = ?", (pieza_id,))
     pieza = c.fetchone()
 
@@ -365,32 +365,34 @@ def devolver_pieza_suelta(pieza_id):
     pieza_dict = dict(pieza)
     cantidad_actual = int(pieza_dict.get('cantidad') if pieza_dict.get('cantidad') is not None else pieza_dict.get('stock', 0))
 
-    # 2. Si sigue sirviendo, aumentamos el stock
     if sigue_sirviendo == 'si':
         nuevo_stock = cantidad_actual + cantidad_devuelta
         c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
-    
-    estado_texto = "Disponible (En Taller)" if sigue_sirviendo == 'si' else "Devuelto (Dañado/Descartado)"
-    
-    # 3. EN LUGAR DE INSERTAR UNA NUEVA FILA, ACTUALIZAMOS EL ÚLTIMO REGISTRO PENDIENTE DE ESTA PIEZA
-    # Buscamos el último registro en historial para esta pieza que siga como 'Retirada a Campo'
-    c.execute('''SELECT id FROM historial 
-                 WHERE pieza_id = ? AND (estado_solicitud LIKE '%Retirada%' OR estado_solicitud LIKE '%Pendiente%')
-                 ORDER BY id DESC LIMIT 1''', (pieza_id,))
-    ultimo_movimiento = c.fetchone()
 
-    if ultimo_movimiento:
-        # Actualizamos el registro existente para cerrarlo con la devolución
+    estado_texto = "Disponible (En Taller)" if sigue_sirviendo == 'si' else "Devuelto (Dañado/Descartado)"
+    nuevo_motivo = f"Devolución registrada. Cantidad: {cantidad_devuelta}"
+
+    # 2. BUSCAR EL ÚLTIMO REGISTRO ACTIVO/RETIRADO DE ESTA PIEZA EN EL HISTORIAL
+    c.execute('''SELECT id FROM historial 
+                 WHERE pieza_id = ? AND estado_solicitud LIKE '%Retirada%'
+                 ORDER BY id DESC LIMIT 1''', (pieza_id,))
+    registro_previo = c.fetchone()
+
+    if registro_previo:
+        # ACTUALIZAMOS la fila existente para que cambie a devuelta (Sin crear otra fila)
         c.execute('''UPDATE historial 
-                     SET motivo = ?, estado_solicitud = ?
+                     SET motivo = ?, estado_solicitud = ?, accion = 'Completado'
                      WHERE id = ?''', 
-                  (f'Devolución registrada. Cantidad: {cantidad_devuelta}', estado_texto, ultimo_movimiento['id']))
+                  (nuevo_motivo, estado_texto, registro_previo['id']))
     else:
-        # Si por alguna razón no encuentra el registro previo, inserta uno nuevo de respaldo
-        nombre_hist = pieza_dict.get('nombre', 'Pieza Suelta')
-        c.execute('''INSERT INTO historial (maquina_codigo, pieza_id, pieza_nombre, tecnico, motivo, estado_solicitud)
-                     VALUES (?, ?, ?, ?, ?, ?)''',
-                  ('Taller', pieza_id, nombre_hist, 'Taller', f'Devolución de pieza suelta. Cantidad: {cantidad_devuelta}', estado_texto))
+        # Plan B por si acaso: si no encuentra la de retirada, actualiza la última en general de esa pieza
+        c.execute('''SELECT id FROM historial WHERE pieza_id = ? ORDER BY id DESC LIMIT 1''', (pieza_id,))
+        ultimo_cualquiera = c.fetchone()
+        if ultimo_cualquiera:
+            c.execute('''UPDATE historial 
+                         SET motivo = ?, estado_solicitud = ?
+                         WHERE id = ?''', 
+                      (nuevo_motivo, estado_texto, ultimo_cualquiera['id']))
 
     conn.commit()
     conn.close()
