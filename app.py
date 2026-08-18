@@ -449,6 +449,11 @@ def usar_pieza_suelta(pieza_id):
     tecnico = request.form.get('tecnico', 'Taller')
     motivo = request.form.get('motivo', 'Uso directo')
     maquina_destino = request.form.get('maquina_destino', 'Uso General')
+    
+    try:
+        cantidad_tomada = int(request.form.get('cantidad', 1))
+    except (ValueError, TypeError):
+        cantidad_tomada = 1
 
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
@@ -463,29 +468,28 @@ def usar_pieza_suelta(pieza_id):
         return "Pieza no encontrada", 404
 
     # 2. Detectamos si la columna se llama 'stock' o 'cantidad'
-    # Usamos .keys() para ver qué columnas tiene la fila realmente
     columna_cantidad = 'stock' if 'stock' in pieza.keys() else 'cantidad'
     cantidad_actual = pieza[columna_cantidad]
 
-    if cantidad_actual <= 0:
+    if cantidad_actual < cantidad_tomada:
         conn.close()
-        return "Sin stock disponible", 400
+        return "No hay suficiente stock disponible", 400
 
-    # 3. Descontamos
-    c.execute(f"UPDATE piezas_sueltas SET {columna_cantidad} = {columna_cantidad} - 1 WHERE id = ?", (pieza_id,))
+    # 3. Descontamos la cantidad exacta que pidió el usuario
+    nuevo_stock = cantidad_actual - cantidad_tomada
+    c.execute(f"UPDATE piezas_sueltas SET {columna_cantidad} = ? WHERE id = ?", (nuevo_stock, pieza_id))
 
     # 4. Registrar en historial
     nombre_hist = pieza['nombre']
+    motivo_completo = f"{motivo} (Cantidad tomada: {cantidad_tomada})"
     c.execute('''INSERT INTO historial (maquina_codigo, pieza_id, pieza_nombre, tecnico, motivo, estado_solicitud)
                  VALUES (?, ?, ?, ?, ?, 'Uso Directo')''',
-              (maquina_destino, pieza_id, nombre_hist, tecnico, motivo))
+              (maquina_destino, pieza_id, nombre_hist, tecnico, motivo_completo))
 
     conn.commit()
     conn.close()
 
     return redirect(url_for('piezas_sueltas'))
-
-
 # ==========================================
 # RUTAS DE ADMINISTRACIÓN Y HISTORIAL
 # ==========================================
