@@ -342,6 +342,9 @@ def enviar_solicitud():
     """
 
 
+# Carpeta donde se guardarán las fotos de evidencia
+UPLOAD_FOLDER = 'static/uploads'
+
 @app.route('/devolver_pieza_suelta/<int:pieza_id>', methods=['POST'])
 def devolver_pieza_suelta(pieza_id):
     sigue_sirviendo = request.form.get('sigue_sirviendo', 'si')
@@ -350,11 +353,21 @@ def devolver_pieza_suelta(pieza_id):
     except (ValueError, TypeError):
         cantidad_devuelta = 1
 
+    # Procesar la foto opcional
+    foto_nombre = None
+    if 'foto' in request.files:
+        file = request.files['foto']
+        if file and file.filename != '':
+            filename = secure_filename(file.filename)
+            os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+            file.save(os.path.join(UPLOAD_FOLDER, filename))
+            foto_nombre = filename
+
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
-    # 1. Obtener datos de la pieza para sumar stock si sirve
+    # 1. Obtener datos de la pieza
     c.execute("SELECT * FROM piezas_sueltas WHERE id = ?", (pieza_id,))
     pieza = c.fetchone()
 
@@ -365,78 +378,52 @@ def devolver_pieza_suelta(pieza_id):
     pieza_dict = dict(pieza)
     cantidad_actual = int(pieza_dict.get('cantidad') if pieza_dict.get('cantidad') is not None else pieza_dict.get('stock', 0))
 
+    # 2. Si sigue sirviendo, sumamos al stock físico
     if sigue_sirviendo == 'si':
         nuevo_stock = cantidad_actual + cantidad_devuelta
         c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
+    
+    # 3. Definir el texto del estado según tu elección
+    if sigue_sirviendo == 'si':
+        estado_texto = "Disponible (En Taller)"
+    else:
+        estado_texto = "Inservible / Dañado"
 
-    estado_texto = "Disponible (En Taller)" if sigue_sirviendo == 'si' else "Devuelto (Dañado/Descartado)"
     nuevo_motivo = f"Devolución registrada. Cantidad: {cantidad_devuelta}"
 
-    # 2. BUSCAR EL ÚLTIMO REGISTRO ACTIVO/RETIRADO DE ESTA PIEZA EN EL HISTORIAL
+    # 4. Actualizar el registro pendiente en el historial (para que sea una sola fila limpia)
     c.execute('''SELECT id FROM historial 
-                 WHERE pieza_id = ? AND estado_solicitud LIKE '%Retirada%'
+                 WHERE pieza_id = ? AND (estado_solicitud LIKE '%Retirada%' OR estado_solicitud LIKE '%Pendiente%')
                  ORDER BY id DESC LIMIT 1''', (pieza_id,))
     registro_previo = c.fetchone()
 
     if registro_previo:
-        # ACTUALIZAMOS la fila existente para que cambie a devuelta (Sin crear otra fila)
-        c.execute('''UPDATE historial 
-                     SET motivo = ?, estado_solicitud = ?, accion = 'Completado'
-                     WHERE id = ?''', 
-                  (nuevo_motivo, estado_texto, registro_previo['id']))
+        if foto_nombre:
+            c.execute('''UPDATE historial 
+                         SET motivo = ?, estado_solicitud = ?, accion = 'Completado', evidencia = ?
+                         WHERE id = ?''', 
+                      (nuevo_motivo, estado_texto, foto_nombre, registro_previo['id']))
+        else:
+            c.execute('''UPDATE historial 
+                         SET motivo = ?, estado_solicitud = ?, accion = 'Completado'
+                         WHERE id = ?''', 
+                      (nuevo_motivo, estado_texto, registro_previo['id']))
     else:
-        # Plan B por si acaso: si no encuentra la de retirada, actualiza la última en general de esa pieza
+        # Plan de respaldo si no encuentra la línea previa
         c.execute('''SELECT id FROM historial WHERE pieza_id = ? ORDER BY id DESC LIMIT 1''', (pieza_id,))
         ultimo_cualquiera = c.fetchone()
         if ultimo_cualquiera:
-            c.execute('''UPDATE historial 
-                         SET motivo = ?, estado_solicitud = ?
-                         WHERE id = ?''', 
-                      (nuevo_motivo, estado_texto, ultimo_cualquiera['id']))
+            if foto_nombre:
+                c.execute('''UPDATE historial SET motivo = ?, estado_solicitud = ?, evidencia = ? WHERE id = ?''',
+                          (nuevo_motivo, estado_texto, foto_nombre, ultimo_cualquiera['id']))
+            else:
+                c.execute('''UPDATE historial SET motivo = ?, estado_solicitud = ? WHERE id = ?''',
+                          (nuevo_motivo, estado_texto, ultimo_cualquiera['id']))
 
     conn.commit()
     conn.close()
 
     return redirect(url_for('piezas_sueltas'))
-
-@app.route('/piezas_sueltas')
-def piezas_sueltas():
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    
-    # Quitamos el filtro '> 0' para que se vea el stock real actual (0 o más)
-    try:
-        c.execute("SELECT * FROM piezas_sueltas ORDER BY id DESC")
-    except sqlite3.OperationalError:
-        c.execute("SELECT * FROM piezas_sueltas ORDER BY id DESC")
-        
-    piezas = c.fetchall()
-    conn.close()
-    return render_template('piezas_sueltas.html', piezas=piezas)
-
-
-@app.route('/admin/agregar_pieza_suelta', methods=['POST'])
-def agregar_pieza_suelta():
-    nombre = request.form.get('nombre')
-    modelos = request.form.get('modelos_compatibles')
-    codigo_parte = request.form.get('codigo_parte')
-    cantidad = request.form.get('cantidad', 1)
-    ubicacion = request.form.get('ubicacion', 'Taller')
-    estado = request.form.get('estado', 'Nuevo')
-
-    try:
-        conn = sqlite3.connect(DB_NAME)
-        c = conn.cursor()
-        c.execute('''INSERT INTO piezas_sueltas (nombre, modelos_compatibles, codigo_parte, cantidad, ubicacion, estado)
-                     VALUES (?, ?, ?, ?, ?, ?)''',
-                  (nombre, modelos, codigo_parte, int(cantidad), ubicacion, estado))
-        conn.commit()
-        conn.close()
-        return redirect(url_for('piezas_sueltas'))
-    except Exception as e:
-        return f"Error al agregar pieza suelta: {str(e)}", 500
-
 
 @app.route('/usar_pieza_suelta/<int:pieza_id>', methods=['POST'])
 def usar_pieza_suelta(pieza_id):
