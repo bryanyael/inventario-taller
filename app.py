@@ -577,14 +577,14 @@ def cargar_excel():
         # =========================================================================
         # DETECCIÓN AUTOMÁTICA PARA EXCEL DE "PIEZAS SUELTAS / REPUESTOS"
         # =========================================================================
-        if 'stock' in df.columns or ('nombre' in df.columns and 'codigo' not in df.columns and 'Serie del equipo' not in df.columns):
-            # 1. Creamos la tabla si no existe
+        if 'stock' in df.columns or 'cantidad' in df.columns or ('nombre' in df.columns and 'codigo' not in df.columns and 'Serie del equipo' not in df.columns):
+            # 1. Creamos la tabla si no existe (usando 'cantidad' como columna estándar)
             c.execute("""CREATE TABLE IF NOT EXISTS piezas_sueltas (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             codigo TEXT,
                             nombre TEXT,
                             ubicacion TEXT,
-                            stock INTEGER DEFAULT 1
+                            cantidad INTEGER DEFAULT 1
                         )""")
 
             # 2. Verificar y agregar automáticamente las columnas que falten en SQLite
@@ -595,7 +595,7 @@ def cargar_excel():
                 'codigo': 'TEXT',
                 'nombre': 'TEXT',
                 'ubicacion': 'TEXT',
-                'stock': 'INTEGER DEFAULT 1'
+                'cantidad': 'INTEGER DEFAULT 1'
             }
 
             for col_nombre, col_tipo in columnas_necesarias.items():
@@ -605,28 +605,43 @@ def cargar_excel():
                     except Exception as ex:
                         print(f"Columna {col_nombre} ya existe o no requirió cambio: {ex}")
 
-            # 3. Insertar registros del Excel
-            for _, row in df.iterrows():
-                nombre = str(row.get('nombre', '')).strip()
+            # 3. Insertar registros del Excel leyendo los valores reales por fila
+            for idx, row in df.iterrows():
+                nombre = str(row.get('nombre', row.get('Nombre', row.get('Pieza', '')))).strip()
                 if nombre and nombre.lower() != 'nan':
-                    modelo = str(row.get('Modelo de procedencia', '')).strip()
-                    ubicacion = str(row.get('ubicacion', 'Taller')).strip()
+                    modelo = str(row.get('Modelo de procedencia', row.get('Modelo', ''))).strip()
+                    ubicacion = str(row.get('ubicacion', row.get('Ubicación', 'Taller'))).strip()
                     
-                    try:
-                        stock = int(row.get('stock', 1))
-                    except (ValueError, TypeError):
-                        stock = 1
+                    # Intentamos leer el código directamente del Excel si existe, sino creamos uno único por fila
+                    codigo_excel = str(row.get('codigo', row.get('Codigo', row.get('ID', '')))).strip()
+                    if codigo_excel and codigo_excel.lower() != 'nan':
+                        cod_suelta = codigo_excel
+                    else:
+                        cod_suelta = f"PS-{idx + 1:04d}" # Genera PS-0001, PS-0002, etc. de forma única
+
+                    # Buscamos el stock/cantidad real en el Excel de forma flexible
+                    stock_val = 1
+                    for col_stk in ['stock', 'Stock', 'cantidad', 'Cantidad', 'EXISTENCIA', 'existencia']:
+                        if col_stk in df.columns:
+                            try:
+                                val_s = row.get(col_stk)
+                                if pd.notna(val_s):
+                                    stock_val = int(float(val_s))
+                                    break
+                            except (ValueError, TypeError):
+                                pass
 
                     if modelo and modelo.lower() != 'nan':
                         nombre_completo = f"{nombre} ({modelo})"
                     else:
                         nombre_completo = nombre
 
-                    cod_suelta = f"PS-{datetime.now().strftime('%M%S%f')[:6]}"
+                    if not ubicacion or ubicacion.lower() == 'nan':
+                        ubicacion = 'Taller'
 
                     c.execute("""INSERT INTO piezas_sueltas (codigo, nombre, ubicacion, cantidad)
                                  VALUES (?, ?, ?, ?)""",
-                              (cod_suelta, nombre_completo, ubicacion, stock))
+                              (cod_suelta, nombre_completo, ubicacion, stock_val))
 
             conn.commit()
             conn.close()
