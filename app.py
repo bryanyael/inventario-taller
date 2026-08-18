@@ -354,6 +354,7 @@ def devolver_pieza_suelta(pieza_id):
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
+    # 1. Obtener datos de la pieza
     c.execute("SELECT * FROM piezas_sueltas WHERE id = ?", (pieza_id,))
     pieza = c.fetchone()
 
@@ -364,18 +365,32 @@ def devolver_pieza_suelta(pieza_id):
     pieza_dict = dict(pieza)
     cantidad_actual = int(pieza_dict.get('cantidad') if pieza_dict.get('cantidad') is not None else pieza_dict.get('stock', 0))
 
-    # Si sigue sirviendo, sumamos al stock actual
+    # 2. Si sigue sirviendo, aumentamos el stock
     if sigue_sirviendo == 'si':
         nuevo_stock = cantidad_actual + cantidad_devuelta
         c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
     
-    # Registramos el movimiento en el historial
-    nombre_hist = pieza_dict.get('nombre', 'Pieza Suelta')
-    estado_texto = "Devuelto (Funcional)" if sigue_sirviendo == 'si' else "Devuelto (Dañado/Descartado)"
+    estado_texto = "Disponible (En Taller)" if sigue_sirviendo == 'si' else "Devuelto (Dañado/Descartado)"
     
-    c.execute('''INSERT INTO historial (maquina_codigo, pieza_id, pieza_nombre, tecnico, motivo, estado_solicitud)
-                 VALUES (?, ?, ?, ?, ?, ?)''',
-              ('Taller', pieza_id, nombre_hist, 'Taller', f'Devolución de pieza suelta. Cantidad: {cantidad_devuelta}', estado_texto))
+    # 3. EN LUGAR DE INSERTAR UNA NUEVA FILA, ACTUALIZAMOS EL ÚLTIMO REGISTRO PENDIENTE DE ESTA PIEZA
+    # Buscamos el último registro en historial para esta pieza que siga como 'Retirada a Campo'
+    c.execute('''SELECT id FROM historial 
+                 WHERE pieza_id = ? AND (estado_solicitud LIKE '%Retirada%' OR estado_solicitud LIKE '%Pendiente%')
+                 ORDER BY id DESC LIMIT 1''', (pieza_id,))
+    ultimo_movimiento = c.fetchone()
+
+    if ultimo_movimiento:
+        # Actualizamos el registro existente para cerrarlo con la devolución
+        c.execute('''UPDATE historial 
+                     SET motivo = ?, estado_solicitud = ?
+                     WHERE id = ?''', 
+                  (f'Devolución registrada. Cantidad: {cantidad_devuelta}', estado_texto, ultimo_movimiento['id']))
+    else:
+        # Si por alguna razón no encuentra el registro previo, inserta uno nuevo de respaldo
+        nombre_hist = pieza_dict.get('nombre', 'Pieza Suelta')
+        c.execute('''INSERT INTO historial (maquina_codigo, pieza_id, pieza_nombre, tecnico, motivo, estado_solicitud)
+                     VALUES (?, ?, ?, ?, ?, ?)''',
+                  ('Taller', pieza_id, nombre_hist, 'Taller', f'Devolución de pieza suelta. Cantidad: {cantidad_devuelta}', estado_texto))
 
     conn.commit()
     conn.close()
