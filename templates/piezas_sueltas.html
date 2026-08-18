@@ -11,12 +11,16 @@
         body { background-color: #f8f9fa; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
         .card-custom { border: none; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
         
-        /* Corrección para que el modal flote correctamente sobre el fondo oscuro en móviles */
+        /* Corrección definitiva para móviles: evita pantallas opacas congeladas */
         .modal {
             z-index: 1056 !important;
         }
         .modal-backdrop {
             z-index: 1055 !important;
+        }
+        body.modal-open {
+            overflow: auto !important;
+            padding-right: 0 !important;
         }
     </style>
 </head>
