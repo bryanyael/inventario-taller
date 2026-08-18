@@ -446,39 +446,44 @@ def agregar_pieza_suelta():
 
 @app.route('/usar_pieza_suelta/<int:pieza_id>', methods=['POST'])
 def usar_pieza_suelta(pieza_id):
-    tecnico = request.form.get('tecnico')
-    motivo = request.form.get('motivo')
+    tecnico = request.form.get('tecnico', 'Taller')
+    motivo = request.form.get('motivo', 'Uso directo')
     maquina_destino = request.form.get('maquina_destino', 'Uso General')
 
-    try:
-        conn = sqlite3.connect(DB_NAME)
-        conn.row_factory = sqlite3.Row
-        c = conn.cursor()
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
 
-        c.execute("SELECT * FROM piezas_sueltas WHERE id = ?", (pieza_id,))
-        pieza = c.fetchone()
+    # 1. Obtenemos los datos actuales
+    c.execute("SELECT * FROM piezas_sueltas WHERE id = ?", (pieza_id,))
+    pieza = c.fetchone()
 
-        if not pieza or pieza['cantidad'] <= 0:
-            conn.close()
-            return "Pieza no disponible o sin stock suficiente", 400
-
-        # Descontar 1 unidad
-        c.execute("UPDATE piezas_sueltas SET cantidad = cantidad - 1 WHERE id = ?", (pieza_id,))
-
-        # Registrar en el historial
-        nombre_historial = f"[Sueltas] {pieza['nombre']} ({pieza['codigo_parte'] or 'S/C'})"
-        motivo_completo = f"{motivo} - Destino: {maquina_destino}"
-        
-        c.execute('''INSERT INTO historial (maquina_codigo, pieza_id, pieza_nombre, tecnico, motivo, estado_solicitud)
-                     VALUES (?, ?, ?, ?, ?, 'Uso Directo')''',
-                  (maquina_destino, pieza_id, nombre_historial, tecnico, motivo_completo))
-
-        conn.commit()
+    if not pieza:
         conn.close()
+        return "Pieza no encontrada", 404
 
-        return redirect(url_for('piezas_sueltas'))
-    except Exception as e:
-        return f"Error al usar pieza suelta: {str(e)}", 500
+    # 2. Detectamos si la columna se llama 'stock' o 'cantidad'
+    # Usamos .keys() para ver qué columnas tiene la fila realmente
+    columna_cantidad = 'stock' if 'stock' in pieza.keys() else 'cantidad'
+    cantidad_actual = pieza[columna_cantidad]
+
+    if cantidad_actual <= 0:
+        conn.close()
+        return "Sin stock disponible", 400
+
+    # 3. Descontamos
+    c.execute(f"UPDATE piezas_sueltas SET {columna_cantidad} = {columna_cantidad} - 1 WHERE id = ?", (pieza_id,))
+
+    # 4. Registrar en historial
+    nombre_hist = pieza['nombre']
+    c.execute('''INSERT INTO historial (maquina_codigo, pieza_id, pieza_nombre, tecnico, motivo, estado_solicitud)
+                 VALUES (?, ?, ?, ?, ?, 'Uso Directo')''',
+              (maquina_destino, pieza_id, nombre_hist, tecnico, motivo))
+
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for('piezas_sueltas'))
 
 
 # ==========================================
@@ -719,24 +724,6 @@ def cargar_excel():
 
     except Exception as e:
         return f"Error al procesar el Excel: {str(e)}", 500
-@app.route("/admin/imprimir_qrs")
-def imprimir_qrs():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("SELECT codigo, marca, modelo FROM maquinas")
-    rows = cursor.fetchall()
-    conn.close()
-
-    maquinas_dict = {}
-    qrs = {}
-    for r in rows:
-        cod = r[0]
-        maquinas_dict[cod] = {"marca": r[1], "modelo": r[2]}
-        url_maquina = request.host_url.rstrip('/') + url_for('maquina', codigo=cod)
-        qrs[cod] = f"https://quickchart.io/qr?text={url_maquina}&size=250"
-
-    return render_template("imprimir_qrs.html", maquinas=maquinas_dict, qrs=qrs)
-
 @app.route("/admin/imprimir_qrs")
 def imprimir_qrs():
     conn = sqlite3.connect(DB_NAME)
