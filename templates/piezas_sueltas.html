@@ -11,16 +11,27 @@
         body { background-color: #f8f9fa; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
         .card-custom { border: none; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
         
-        /* Corrección definitiva para móviles: evita pantallas opacas congeladas */
+        /* Ajustes definitivos para móviles y modales */
         .modal {
             z-index: 1056 !important;
         }
         .modal-backdrop {
             z-index: 1055 !important;
+            opacity: 0.5 !important;
         }
         body.modal-open {
             overflow: auto !important;
             padding-right: 0 !important;
+        }
+        /* Asegura que el formulario no se desproporcione en pantallas chicas */
+        @media (max-width: 576px) {
+            .modal-dialog {
+                margin: 0.5rem;
+                max-width: calc(100% - 1rem);
+            }
+            .modal-body {
+                padding: 1rem !important;
+            }
         }
     </style>
 </head>
@@ -79,28 +90,28 @@
                                         <div class="modal-dialog modal-dialog-centered">
                                             <div class="modal-content border-0 shadow">
                                                 <div class="modal-header bg-warning text-dark">
-                                                    <h5 class="modal-title fw-bold"><i class="bi bi-box-arrow-down me-2"></i>Tomar Pieza: {{ pieza.nombre }}</h5>
+                                                    <h5 class="modal-title fw-bold fs-6"><i class="bi bi-box-arrow-down me-2"></i>{{ pieza.nombre }}</h5>
                                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                 </div>
                                                 <!-- RUTA CORREGIDA CON URL_FOR -->
                                                 <form action="{{ url_for('usar_pieza_suelta', pieza_id=pieza.id) }}" method="POST">
-                                                    <div class="modal-body p-4">
+                                                    <div class="modal-body p-3">
                                                         <div class="mb-3">
-                                                            <label class="form-label fw-bold">Cantidad a tomar (Máx: {{ stock_disp }}):</label>
+                                                            <label class="form-label fw-bold small">Cantidad a tomar (Máx: {{ stock_disp }}):</label>
                                                             <input type="number" name="cantidad" class="form-control" min="1" max="{{ stock_disp }}" value="1" required>
                                                         </div>
                                                         <div class="mb-3">
-                                                            <label class="form-label fw-bold">Técnico / Persona que la retira:</label>
+                                                            <label class="form-label fw-bold small">Técnico / Persona que la retira:</label>
                                                             <input type="text" name="tecnico" class="form-control" placeholder="Ej. Juan Pérez" required>
                                                         </div>
                                                         <div class="mb-3">
-                                                            <label class="form-label fw-bold">¿Para qué máquina o trabajo se usará?</label>
-                                                            <input type="text" name="motivo" class="form-control" placeholder="Ej. Mantenimiento / Cliente X" required>
+                                                            <label class="form-label fw-bold small">¿Para qué máquina o trabajo se usará?</label>
+                                                            <input type="text" name="motivo" class="form-control" placeholder="Ej. Mantenimiento" required>
                                                         </div>
                                                     </div>
-                                                    <div class="modal-footer bg-light border-0">
-                                                        <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancelar</button>
-                                                        <button type="submit" class="btn btn-warning fw-bold rounded-pill px-4">Confirmar Retiro</button>
+                                                    <div class="modal-footer bg-light border-0 py-2">
+                                                        <button type="button" class="btn btn-secondary btn-sm rounded-pill" data-bs-dismiss="modal">Cancelar</button>
+                                                        <button type="submit" class="btn btn-warning btn-sm fw-bold rounded-pill px-4">Confirmar</button>
                                                     </div>
                                                 </form>
                                             </div>
@@ -125,7 +136,23 @@
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
+    <!-- Bootstrap JS y Script de Limpieza para Móviles -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Previene que los modales dejen la pantalla opaca o congelada en celulares
+        document.addEventListener('DOMContentLoaded', function () {
+            var modales = document.querySelectorAll('.modal');
+            modales.forEach(function (modal) {
+                modal.addEventListener('hidden.bs.modal', function () {
+                    document.querySelectorAll('.modal-backdrop').forEach(function (el) {
+                        el.remove();
+                    });
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = '';
+                    document.body.style.paddingRight = '';
+                });
+            });
+        });
+    </script>
 </body>
 </html>
