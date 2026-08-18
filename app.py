@@ -459,27 +459,30 @@ def usar_pieza_suelta(pieza_id):
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
-    # 1. Obtenemos los datos actuales
+    # 1. Buscamos la pieza por su ID exacto
     c.execute("SELECT * FROM piezas_sueltas WHERE id = ?", (pieza_id,))
     pieza = c.fetchone()
 
     if not pieza:
+        print(f"⚠️ ERROR: No se encontró la pieza con ID {pieza_id} en la base de datos.")
         conn.close()
-        return "Pieza no encontrada", 404
+        return "Pieza no encontrada en la base de datos", 404
 
-    # 2. Detectamos si la columna se llama 'stock' o 'cantidad'
+    # 2. Identificamos si usa la columna 'stock' o 'cantidad'
     columna_cantidad = 'stock' if 'stock' in pieza.keys() else 'cantidad'
-    cantidad_actual = pieza[columna_cantidad]
+    cantidad_actual = int(pieza[columna_cantidad] or 0)
+
+    print(f"-> Pieza encontrada: ID {pieza['id']} | Nombre: {pieza['nombre']} | Stock actual: {cantidad_actual} | Se piden: {cantidad_tomada}")
 
     if cantidad_actual < cantidad_tomada:
         conn.close()
         return "No hay suficiente stock disponible", 400
 
-    # 3. Descontamos la cantidad exacta que pidió el usuario
+    # 3. Calculamos el nuevo stock y actualizamos
     nuevo_stock = cantidad_actual - cantidad_tomada
     c.execute(f"UPDATE piezas_sueltas SET {columna_cantidad} = ? WHERE id = ?", (nuevo_stock, pieza_id))
 
-    # 4. Registrar en historial
+    # 4. Registramos en el historial
     nombre_hist = pieza['nombre']
     motivo_completo = f"{motivo} (Cantidad tomada: {cantidad_tomada})"
     c.execute('''INSERT INTO historial (maquina_codigo, pieza_id, pieza_nombre, tecnico, motivo, estado_solicitud)
@@ -489,6 +492,7 @@ def usar_pieza_suelta(pieza_id):
     conn.commit()
     conn.close()
 
+    print(f"✅ ¡Stock actualizado con éxito! Nuevo stock: {nuevo_stock}")
     return redirect(url_for('piezas_sueltas'))
 # ==========================================
 # RUTAS DE ADMINISTRACIÓN Y HISTORIAL
