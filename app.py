@@ -410,16 +410,15 @@ def piezas_sueltas():
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
-    # Solo seleccionamos las piezas que tengan stock disponible mayor a 0
+    # Quitamos el filtro '> 0' para que se vea el stock real actual (0 o más)
     try:
-        c.execute("SELECT * FROM piezas_sueltas WHERE stock > 0 ORDER BY id DESC")
+        c.execute("SELECT * FROM piezas_sueltas ORDER BY id DESC")
     except sqlite3.OperationalError:
-        c.execute("SELECT * FROM piezas_sueltas WHERE cantidad > 0 ORDER BY id DESC")
+        c.execute("SELECT * FROM piezas_sueltas ORDER BY id DESC")
         
     piezas = c.fetchall()
     conn.close()
     return render_template('piezas_sueltas.html', piezas=piezas)
-
 
 
 @app.route('/admin/agregar_pieza_suelta', methods=['POST'])
