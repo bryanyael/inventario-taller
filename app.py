@@ -342,67 +342,45 @@ def enviar_solicitud():
     """
 
 
-@app.route('/devolver_pieza/<codigo>/<int:pieza_id>', methods=['POST'])
-def devolver_pieza(codigo, pieza_id):
+@app.route('/devolver_pieza_suelta/<int:pieza_id>', methods=['POST'])
+def devolver_pieza_suelta(pieza_id):
+    sigue_sirviendo = request.form.get('sigue_sirviendo', 'si')
     try:
-        conn = sqlite3.connect(DB_NAME)
-        c = conn.cursor()
-        
-        nombre_foto = None
-        
-        # 1. Procesar la foto enviada desde el celular
-        if 'foto_evidencia' in request.files:
-            file = request.files['foto_evidencia']
-            if file and file.filename != '':
-                # Creamos la carpeta estática directamente si no existe
-                carpeta_destino = os.path.join('static', 'evidencias')
-                os.makedirs(carpeta_destino, exist_ok=True)
-                
-                # Nombre único para la foto
-                ext = os.path.splitext(file.filename)[1]
-                nombre_foto = secure_filename(f"dev_{pieza_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{ext}")
-                
-                # Guardamos la foto directamente en static/evidencias/
-                path_completo = os.path.join(carpeta_destino, nombre_foto)
-                file.save(path_completo)
+        cantidad_devuelta = int(request.form.get('cantidad', 1))
+    except (ValueError, TypeError):
+        cantidad_devuelta = 1
 
-        fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
 
-        # 2. Marcar la pieza como disponible
-        c.execute("UPDATE piezas SET disponible = 1, estado = 'Disponible' WHERE id = ?", (pieza_id,))
+    c.execute("SELECT * FROM piezas_sueltas WHERE id = ?", (pieza_id,))
+    pieza = c.fetchone()
 
-        # 3. Buscar el último registro pendiente de esta pieza en el historial
-        c.execute("SELECT id FROM historial WHERE pieza_id = ? ORDER BY id DESC LIMIT 1", (pieza_id,))
-        ultimo_registro = c.fetchone()
-
-        if ultimo_registro:
-            reg_id = ultimo_registro[0]
-            if nombre_foto:
-                c.execute("""UPDATE historial 
-                             SET estado_solicitud = 'Devuelto', fecha_devuelto = ?, foto_evidencia = ? 
-                             WHERE id = ?""", (fecha_actual, nombre_foto, reg_id))
-            else:
-                c.execute("""UPDATE historial 
-                             SET estado_solicitud = 'Devuelto', fecha_devuelto = ? 
-                             WHERE id = ?""", (fecha_actual, reg_id))
-        else:
-            # Si no había registro previo, insertamos uno nuevo de devolución
-            c.execute("""INSERT INTO historial (maquina_codigo, pieza_id, estado_solicitud, fecha_devuelto, foto_evidencia, tecnico, motivo)
-                         VALUES (?, ?, 'Devuelto', ?, ?, 'Taller', 'Devolución')""",
-                      (codigo, pieza_id, fecha_actual, nombre_foto))
-
-        conn.commit()
+    if not pieza:
         conn.close()
+        return "Pieza no encontrada", 404
 
-    except Exception as e:
-        print(f"Error crítico al devolver pieza: {e}")
-        return f"Error: {str(e)}", 500
+    pieza_dict = dict(pieza)
+    cantidad_actual = int(pieza_dict.get('cantidad') if pieza_dict.get('cantidad') is not None else pieza_dict.get('stock', 0))
 
-    return redirect("/admin/registros")
+    # Si sigue sirviendo, sumamos al stock actual
+    if sigue_sirviendo == 'si':
+        nuevo_stock = cantidad_actual + cantidad_devuelta
+        c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
+    
+    # Registramos el movimiento en el historial
+    nombre_hist = pieza_dict.get('nombre', 'Pieza Suelta')
+    estado_texto = "Devuelto (Funcional)" if sigue_sirviendo == 'si' else "Devuelto (Dañado/Descartado)"
+    
+    c.execute('''INSERT INTO historial (maquina_codigo, pieza_id, pieza_nombre, tecnico, motivo, estado_solicitud)
+                 VALUES (?, ?, ?, ?, ?, ?)''',
+              ('Taller', pieza_id, nombre_hist, 'Taller', f'Devolución de pieza suelta. Cantidad: {cantidad_devuelta}', estado_texto))
 
-# ==========================================
-# MODULO: PIEZAS SUELTAS / STOCK GENERAL
-# ==========================================
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for('piezas_sueltas'))
 
 @app.route('/piezas_sueltas')
 def piezas_sueltas():
