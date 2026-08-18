@@ -447,6 +447,19 @@ def usar_pieza_suelta(pieza_id):
     return redirect(url_for('piezas_sueltas'))
 # ==========================================
 # RUTAS DE ADMINISTRACIÓN Y HISTORIAL
+
+@app.route('/piezas_sueltas')
+def piezas_sueltas():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # AQUÍ ESTÁ EL DETALLE: Asegúrate de seleccionar la columna real de stock y el código real de cada pieza
+    c.execute("SELECT id, codigo, nombre_pieza, ubicacion, stock FROM piezas_sueltas") # O como se llame tu tabla
+    piezas = c.fetchall()
+    conn.close()
+    
+    return render_template('piezas_sueltas.html', piezas=piezas)
 # ==========================================
 @app.route('/historial')
 @app.route('/registros')
