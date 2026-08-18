@@ -624,7 +624,7 @@ def cargar_excel():
 
                     cod_suelta = f"PS-{datetime.now().strftime('%M%S%f')[:6]}"
 
-                    c.execute("""INSERT INTO piezas_sueltas (codigo, nombre, ubicacion, stock)
+                    c.execute("""INSERT INTO piezas_sueltas (codigo, nombre, ubicacion, cantidad)
                                  VALUES (?, ?, ?, ?)""",
                               (cod_suelta, nombre_completo, ubicacion, stock))
 
