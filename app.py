@@ -342,9 +342,6 @@ def enviar_solicitud():
     """
 
 
-# Carpeta donde se guardarán las fotos de evidencia
-UPLOAD_FOLDER = 'static/uploads'
-
 @app.route('/devolver_pieza_suelta/<int:pieza_id>', methods=['POST'])
 def devolver_pieza_suelta(pieza_id):
     sigue_sirviendo = request.form.get('sigue_sirviendo', 'si')
