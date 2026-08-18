@@ -454,8 +454,8 @@ def piezas_sueltas():
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
-    # AQUÍ ESTÁ EL DETALLE: Asegúrate de seleccionar la columna real de stock y el código real de cada pieza
-    c.execute("SELECT id, codigo, nombre_pieza, ubicacion, stock FROM piezas_sueltas") # O como se llame tu tabla
+    # Corregido: cambiamos 'nombre_pieza' por 'nombre'
+    c.execute("SELECT id, codigo, nombre, ubicacion, cantidad FROM piezas_sueltas")
     piezas = c.fetchall()
     conn.close()
     
