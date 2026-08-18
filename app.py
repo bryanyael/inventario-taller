@@ -47,7 +47,7 @@ def init_db():
     
     # NUEVA TABLA: Piezas sueltas / Stock general
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS piezas_sueltas (
+        CREATE TABLE IF NOT EXISTS  (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL,
             modelos_compatibles TEXT,
@@ -227,7 +227,7 @@ def tomar_pieza_suelta(codigo):
     c = conn.cursor()
 
     # Buscar la pieza por código o ID
-    c.execute("SELECT id, nombre, COALESCE(stock, cantidad, 0) FROM piezas_sueltas WHERE codigo = ? OR id = ?", (codigo, codigo))
+    c.execute("SELECT id, nombre, COALESCE(stock, cantidad, 0) FROM  WHERE codigo = ? OR id = ?", (codigo, codigo))
     pieza = c.fetchone()
 
     if pieza:
@@ -237,9 +237,9 @@ def tomar_pieza_suelta(codigo):
             nuevo_stock = stock_actual - cantidad_tomada
             
             try:
-                c.execute("UPDATE piezas_sueltas SET stock = ? WHERE id = ?", (nuevo_stock, pieza_id))
+                c.execute("UPDATE  SET stock = ? WHERE id = ?", (nuevo_stock, pieza_id))
             except sqlite3.OperationalError:
-                c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
+                c.execute("UPDATE  SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
 
             fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             motivo_completo = f"{motivo} (Cantidad: {cantidad_tomada})"
@@ -258,7 +258,7 @@ def tomar_pieza_suelta(codigo):
             conn.commit()
 
     conn.close()
-    return redirect('/piezas_sueltas')
+    return redirect('/')
 
 @app.route('/maquina/rentar/<codigo>', methods=['POST'])
 def rentar_maquina(codigo):
@@ -355,7 +355,7 @@ def devolver_pieza_suelta(pieza_id):
     c = conn.cursor()
 
     # 1. Obtener datos de la pieza para sumar stock si sirve
-    c.execute("SELECT * FROM piezas_sueltas WHERE id = ?", (pieza_id,))
+    c.execute("SELECT * FROM  WHERE id = ?", (pieza_id,))
     pieza = c.fetchone()
 
     if not pieza:
@@ -367,7 +367,7 @@ def devolver_pieza_suelta(pieza_id):
 
     if sigue_sirviendo == 'si':
         nuevo_stock = cantidad_actual + cantidad_devuelta
-        c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
+        c.execute("UPDATE  SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
 
     estado_texto = "Disponible (En Taller)" if sigue_sirviendo == 'si' else "Devuelto (Dañado/Descartado)"
     nuevo_motivo = f"Devolución registrada. Cantidad: {cantidad_devuelta}"
@@ -397,7 +397,7 @@ def devolver_pieza_suelta(pieza_id):
     conn.commit()
     conn.close()
 
-    return redirect(url_for('piezas_sueltas'))
+    return redirect(url_for(''))
 @app.route('/usar_pieza_suelta/<int:pieza_id>', methods=['POST'])
 def usar_pieza_suelta(pieza_id):
     tecnico = request.form.get('tecnico', 'Taller')
@@ -414,7 +414,7 @@ def usar_pieza_suelta(pieza_id):
     c = conn.cursor()
 
     # Buscamos la pieza por su ID exacto
-    c.execute("SELECT * FROM piezas_sueltas WHERE id = ?", (pieza_id,))
+    c.execute("SELECT * FROM  WHERE id = ?", (pieza_id,))
     pieza = c.fetchone()
 
     if not pieza:
@@ -432,7 +432,7 @@ def usar_pieza_suelta(pieza_id):
     nuevo_stock = cantidad_actual - cantidad_tomada
 
     # Actualizamos directamente la columna 'cantidad' en la base de datos
-    c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
+    c.execute("UPDATE  SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
 
     # Registramos en el historial
     nombre_hist = pieza_dict.get('nombre', 'Pieza')
@@ -444,7 +444,7 @@ def usar_pieza_suelta(pieza_id):
     conn.commit()
     conn.close()
 
-    return redirect(url_for('piezas_sueltas'))
+    return redirect(url_for(''))
 # ==========================================
 # RUTAS DE ADMINISTRACIÓN Y HISTORIAL
 
@@ -454,8 +454,8 @@ def piezas_sueltas():
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
-    # Corregido: cambiamos 'nombre_pieza' por 'nombre'
-    c.execute("SELECT id, codigo, nombre, ubicacion, cantidad FROM piezas_sueltas")
+    # Eliminamos 'codigo' de la consulta si no existe en la tabla
+    c.execute("SELECT id, nombre, ubicacion, cantidad FROM piezas_sueltas")
     piezas = c.fetchall()
     conn.close()
     
