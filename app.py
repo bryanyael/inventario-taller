@@ -398,7 +398,7 @@ def devolver_pieza(codigo, pieza_id):
         print(f"Error crítico al devolver pieza: {e}")
         return f"Error: {str(e)}", 500
 
-    return redirect(f"/maquina/{codigo}")
+    return redirect("/admin/registros")
 
 # ==========================================
 # MODULO: PIEZAS SUELTAS / STOCK GENERAL
