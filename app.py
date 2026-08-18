@@ -353,63 +353,54 @@ def devolver_pieza_suelta(pieza_id):
     except (ValueError, TypeError):
         cantidad_devuelta = 1
 
-    # Procesar la foto
-    foto_nombre = None
-    if 'foto' in request.files:
-        file = request.files['foto']
-        if file and file.filename != '':
-            filename = secure_filename(file.filename)
-            os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-            file.save(os.path.join(UPLOAD_FOLDER, filename))
-            foto_nombre = filename
-
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
-    # --- CORRECCIÓN IMPORTANTE: Asegurar que la columna existe ---
-    try:
-        c.execute("ALTER TABLE historial ADD COLUMN evidencia TEXT")
-        conn.commit()
-    except sqlite3.OperationalError:
-        pass # La columna ya existía, seguimos normal
-
-    # 1. Obtener datos de la pieza
+    # 1. Obtener datos de la pieza para sumar stock si sirve
     c.execute("SELECT * FROM piezas_sueltas WHERE id = ?", (pieza_id,))
     pieza = c.fetchone()
+
     if not pieza:
         conn.close()
         return "Pieza no encontrada", 404
 
     pieza_dict = dict(pieza)
-    cantidad_actual = int(pieza_dict.get('cantidad', 0))
+    cantidad_actual = int(pieza_dict.get('cantidad') if pieza_dict.get('cantidad') is not None else pieza_dict.get('stock', 0))
 
-    # 2. Actualizar stock
     if sigue_sirviendo == 'si':
         nuevo_stock = cantidad_actual + cantidad_devuelta
         c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
-    
-    estado_texto = "Disponible (En Taller)" if sigue_sirviendo == 'si' else "Inservible / Dañado"
-    nuevo_motivo = f"Devolución: {cantidad_devuelta}"
 
-    # 3. Buscar registro pendiente y actualizar
-    c.execute('''SELECT id FROM historial WHERE pieza_id = ? AND estado_solicitud IN ('Retirada', 'Pendiente') 
+    estado_texto = "Disponible (En Taller)" if sigue_sirviendo == 'si' else "Devuelto (Dañado/Descartado)"
+    nuevo_motivo = f"Devolución registrada. Cantidad: {cantidad_devuelta}"
+
+    # 2. BUSCAR EL ÚLTIMO REGISTRO ACTIVO/RETIRADO DE ESTA PIEZA EN EL HISTORIAL
+    c.execute('''SELECT id FROM historial 
+                 WHERE pieza_id = ? AND estado_solicitud LIKE '%Retirada%'
                  ORDER BY id DESC LIMIT 1''', (pieza_id,))
-    registro = c.fetchone()
+    registro_previo = c.fetchone()
 
-    if registro:
-        # Si hay foto, incluimos la columna evidencia
-        if foto_nombre:
-            c.execute("UPDATE historial SET motivo=?, estado_solicitud=?, accion='Completado', evidencia=? WHERE id=?", 
-                      (nuevo_motivo, estado_texto, foto_nombre, registro['id']))
-        else:
-            c.execute("UPDATE historial SET motivo=?, estado_solicitud=?, accion='Completado' WHERE id=?", 
-                      (nuevo_motivo, estado_texto, registro['id']))
-    
+    if registro_previo:
+        # ACTUALIZAMOS la fila existente para que cambie a devuelta (Sin crear otra fila)
+        c.execute('''UPDATE historial 
+                     SET motivo = ?, estado_solicitud = ?, accion = 'Completado'
+                     WHERE id = ?''', 
+                  (nuevo_motivo, estado_texto, registro_previo['id']))
+    else:
+        # Plan B por si acaso: si no encuentra la de retirada, actualiza la última en general de esa pieza
+        c.execute('''SELECT id FROM historial WHERE pieza_id = ? ORDER BY id DESC LIMIT 1''', (pieza_id,))
+        ultimo_cualquiera = c.fetchone()
+        if ultimo_cualquiera:
+            c.execute('''UPDATE historial 
+                         SET motivo = ?, estado_solicitud = ?
+                         WHERE id = ?''', 
+                      (nuevo_motivo, estado_texto, ultimo_cualquiera['id']))
+
     conn.commit()
     conn.close()
-    return redirect(url_for('piezas_sueltas'))
 
+    return redirect(url_for('piezas_sueltas'))
 @app.route('/usar_pieza_suelta/<int:pieza_id>', methods=['POST'])
 def usar_pieza_suelta(pieza_id):
     tecnico = request.form.get('tecnico', 'Taller')
