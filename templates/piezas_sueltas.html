@@ -78,7 +78,8 @@
                                                     <h5 class="modal-title fw-bold"><i class="bi bi-box-arrow-down me-2"></i>Tomar Pieza: {{ pieza.nombre }}</h5>
                                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                 </div>
-                                                <form action="/piezas/tomar/{{ pieza.id }}" method="POST">
+                                                <!-- RUTA CORREGIDA CON URL_FOR -->
+                                                <form action="{{ url_for('usar_pieza_suelta', pieza_id=pieza.id) }}" method="POST">
                                                     <div class="modal-body p-4">
                                                         <div class="mb-3">
                                                             <label class="form-label fw-bold">Cantidad a tomar (Máx: {{ stock_disp }}):</label>
