@@ -430,7 +430,7 @@ def usar_pieza_suelta(pieza_id):
     nuevo_stock = cantidad_actual - cantidad_tomada
 
     # Actualizamos directamente la columna 'cantidad' en la base de datos
-    c.execute("UPDATE  SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
+    c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
 
     # Registramos en el historial
     nombre_hist = pieza_dict.get('nombre', 'Pieza')
