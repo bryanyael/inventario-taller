@@ -442,7 +442,7 @@ def usar_pieza_suelta(pieza_id):
     conn.commit()
     conn.close()
 
-    return redirect(url_for(''))
+    return redirect(url_for('piezas_sueltas'))
 # ==========================================
 # RUTAS DE ADMINISTRACIÓN Y HISTORIAL
 
