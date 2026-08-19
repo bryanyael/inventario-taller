@@ -411,7 +411,7 @@ def usar_pieza_suelta(pieza_id):
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
-    # Buscamos la pieza por su ID exacto de forma segura
+    # Buscamos la pieza por su ID exacto
     c.execute("SELECT * FROM piezas_sueltas WHERE id = ?", (pieza_id,))
     pieza = c.fetchone()
 
@@ -419,7 +419,7 @@ def usar_pieza_suelta(pieza_id):
         conn.close()
         return "Pieza no encontrada", 404
 
-    # Verificamos el stock manejando ambas posibles columnas (stock o cantidad)
+    # Forzamos a usar siempre 'cantidad' (y si por alguna razón antigua existe 'stock', la tomamos como respaldo)
     pieza_dict = dict(pieza)
     cantidad_actual = int(pieza_dict.get('cantidad') if pieza_dict.get('cantidad') is not None else pieza_dict.get('stock', 0))
 
@@ -429,25 +429,15 @@ def usar_pieza_suelta(pieza_id):
 
     nuevo_stock = cantidad_actual - cantidad_tomada
 
-    # Actualizamos el stock (probando primero con stock y respaldando con cantidad)
-    try:
-        c.execute("UPDATE piezas_sueltas SET stock = ? WHERE id = ?", (nuevo_stock, pieza_id))
-    except sqlite3.OperationalError:
-        c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
+    # Actualizamos directamente la columna 'cantidad' en la base de datos
+    c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
 
     # Registramos en el historial
     nombre_hist = pieza_dict.get('nombre', 'Pieza')
     motivo_completo = f"{motivo} (Cantidad tomada: {cantidad_tomada})"
-    
-    try:
-        c.execute('''INSERT INTO historial (maquina_codigo, pieza_id, pieza_nombre, tecnico, motivo, estado_solicitud)
-                     VALUES (?, ?, ?, ?, ?, 'Uso Directo')''',
-                  (maquina_destino, pieza_id, nombre_hist, tecnico, motivo_completo))
-    except sqlite3.OperationalError:
-        # Por si el historial usa nombres de columnas ligeramente distintos
-        c.execute('''INSERT INTO historial (maquina_codigo, pieza_id, tecnico, motivo, estado_solicitud)
-                     VALUES (?, ?, ?, ?, 'Uso Directo')''',
-                  (maquina_destino, pieza_id, tecnico, motivo_completo))
+    c.execute('''INSERT INTO historial (maquina_codigo, pieza_id, pieza_nombre, tecnico, motivo, estado_solicitud)
+                 VALUES (?, ?, ?, ?, ?, 'Uso Directo')''',
+              (maquina_destino, pieza_id, nombre_hist, tecnico, motivo_completo))
 
     conn.commit()
     conn.close()
