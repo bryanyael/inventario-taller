@@ -363,10 +363,11 @@ def devolver_pieza_suelta(pieza_id):
     if sigue_sirviendo == 'si':
         c.execute("UPDATE piezas_sueltas SET cantidad = cantidad + ? WHERE id = ?", (cantidad, pieza_id))
     
-    # Aquí también usamos 'foto_evidencia'
-    c.execute("""INSERT INTO historial (pieza_id, tecnico, motivo, foto_evidencia, fecha_registro) 
-                 VALUES (?, ?, ?, ?, ?)""", 
-              (pieza_id, 'Taller', f"Devolución: {'Funcional' if sigue_sirviendo == 'si' else 'Dañada'} (Cant: {cantidad})", foto_ruta, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+    # Hemos añadido 'estado_solicitud' en el INSERT con el valor 'Devuelto'
+    c.execute("""INSERT INTO historial (pieza_id, tecnico, motivo, foto_evidencia, estado_solicitud, fecha_registro) 
+                 VALUES (?, ?, ?, ?, ?, ?)""", 
+              (pieza_id, 'Taller', f"Devolución: {'Funcional' if sigue_sirviendo == 'si' else 'Dañada'} (Cant: {cantidad})", 
+               foto_ruta, 'Devuelto', datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     
     conn.commit()
     conn.close()
