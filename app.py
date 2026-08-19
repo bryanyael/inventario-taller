@@ -678,13 +678,9 @@ def cargar_excel():
 def imprimir_qrs():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    
-    # MODIFICACIÓN: Agregamos el filtro para traer solo las disponibles
-    cursor.execute("SELECT codigo, marca, modelo FROM maquinas WHERE estado = 'Disponible'")
-    
+    cursor.execute("SELECT codigo, marca, modelo FROM maquinas")
     rows = cursor.fetchall()
     conn.close()
-
     maquinas_dict = {}
     qrs = {}
     for r in rows:
@@ -693,9 +689,7 @@ def imprimir_qrs():
         url_maquina = request.host_url.rstrip('/') + url_for('maquina', codigo=cod)
         qrs[cod] = f"https://quickchart.io/qr?text={url_maquina}&size=250"
 
-    return render_template("imprimir_qrs.html", maquinas=maquinas_dict, qrs=qrs)
-
-
+    return render_template("imprimir_qrs.html", maquinas=maquinas_dict, qrs=qrs) es ese 
 @app.route("/admin/exportar_excel")
 def exportar_excel():
     conn = sqlite3.connect(DB_NAME)
