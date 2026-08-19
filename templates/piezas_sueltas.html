@@ -51,15 +51,22 @@
                         {% set p_nombre = pieza['nombre'] or pieza['nombre_pieza'] or pieza['pieza'] or 'Pieza sin nombre' %}
                         {% set p_ubicacion = pieza['ubicacion'] or pieza['ubicacion_pieza'] or 'Estante General' %}
                         {% set stock_disp = (pieza['stock'] or pieza['cantidad'] or pieza['stock_disponible'] or 0)|int %}
+                        {% set stock_total = (pieza['stock_inicial'] or pieza['total'] or stock_disp)|int %}
                         <tr>
                             <td class="fw-bold"><span class="badge bg-secondary">{{ p_codigo }}</span></td>
                             <td>{{ p_nombre }}</td>
                             <td><i class="bi bi-geo-alt me-1 text-muted"></i>{{ p_ubicacion }}</td>
                             
-                            <!-- Stock Disponible y Estado Dinámico Corregido -->
+                            <!-- Stock Disponible y Estado Dinámico con Préstamos -->
                             <td class="text-center">
                                 {% if stock_disp > 0 %}
-                                    <span class="badge bg-success fs-6">{{ stock_disp }} uds.</span>
+                                    {% if stock_disp < stock_total %}
+                                        <span class="badge bg-warning text-dark fs-6">
+                                            <i class="bi bi-bookmark-fill me-1"></i>{{ stock_disp }} uds. ({{ stock_total - stock_disp }} prestada{% if (stock_total - stock_disp) > 1 %}s{% endif %})
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-success fs-6">{{ stock_disp }} uds.</span>
+                                    {% endif %}
                                 {% else %}
                                     <span class="badge bg-danger fs-6"><i class="bi bi-x-circle me-1"></i>Agotado</span>
                                 {% endif %}
