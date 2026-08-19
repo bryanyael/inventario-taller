@@ -62,8 +62,12 @@
                         {% for r in registros %}
                         {% set maquina = r['maquina_codigo'] or r['maquina'] or 'REPUESTO-SUELTO' %}
                         {% set est = (r['estado_solicitud'] or r['estado'] or '')|string %}
-                        {# Es devuelto si el estado lo indica O si viene de repuesto suelto #}
-                        {% set es_devuelto = 'Devuel' in est or 'Dispon' in est or 'Taller' in est or maquina == 'REPUESTO-SUELTO' %}
+                        
+                        {# Detectamos si es una pieza de repuesto o una máquina completa en renta #}
+                        {% set es_repuesto = (maquina == 'REPUESTO-SUELTO' or r['pieza_id'] or r['pieza_nombre'] or r['pieza']) and maquina.startswith('VR') == false and maquina.startswith('NLS') == false %}
+                        
+                        {# Condición de devuelto solo aplica si es repuesto y el estado lo indica #}
+                        {% set es_devuelto = 'Devuel' in est or 'Dispon' in est or 'Taller' in est %}
                         
                         <tr>
                             <td class="text-nowrap">
@@ -84,7 +88,7 @@
                                 {% if pieza_val and pieza_val != '—' and pieza_val != 'None' and pieza_val != '' %}
                                     <span class="fw-semibold text-dark"><i class="bi bi-gear me-1 text-primary"></i>{{ pieza_val }}</span>
                                 {% else %}
-                                    <span class="text-muted">—</span>
+                                    <span class="text-muted">— (Máquina Completa)</span>
                                 {% endif %}
                             </td>
 
@@ -100,13 +104,17 @@
                             </td>
 
                             <td>
-                                {% if es_devuelto %}
+                                {% if es_repuesto and es_devuelto %}
                                     <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">
                                         <i class="bi bi-check-circle me-1"></i> Devuelto (En Taller)
                                     </span>
-                                {% else %}
+                                {% elif es_repuesto and not es_devuelto %}
                                     <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill">
                                         <i class="bi bi-truck me-1"></i> Retirada a Campo
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill">
+                                        <i class="bi bi-box-arrow-up-right me-1"></i> Salida a Renta
                                     </span>
                                 {% endif %}
                             </td>
@@ -130,12 +138,17 @@
                             </td>
 
                             <td class="text-center">
-                                {% if not es_devuelto %}
-                                    <button class="btn btn-sm btn-success rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#modalDevolver{{ r['id'] }}">
-                                        <i class="bi bi-arrow-return-left me-1"></i> Devolver
-                                    </button>
+                                {% if es_repuesto %}
+                                    {% if not es_devuelto %}
+                                        <button class="btn btn-sm btn-success rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#modalDevolver{{ r['id'] }}">
+                                            <i class="bi bi-arrow-return-left me-1"></i> Devolver
+                                        </button>
+                                    {% else %}
+                                        <span class="text-muted small fw-bold"><i class="bi bi-check-all me-1"></i>Devuelto</span>
+                                    {% endif %}
                                 {% else %}
-                                    <span class="text-muted small fw-bold"><i class="bi bi-check-all me-1"></i>Devuelto</span>
+                                    <!-- Si es una máquina de renta, solo mostramos que está asignada sin botón de devolución -->
+                                    <span class="text-muted small"><i class="bi bi-shield-check me-1"></i> Registrado</span>
                                 {% endif %}
                             </td>
                         </tr>
@@ -153,13 +166,14 @@
         </div>
     </div>
 
-    <!-- Modales -->
+    <!-- Modales de devolución (Solo para repuestos) -->
     {% for r in registros %}
     {% set maquina = r['maquina_codigo'] or r['maquina'] or 'REPUESTO-SUELTO' %}
     {% set est = (r['estado_solicitud'] or r['estado'] or '')|string %}
-    {% set es_devuelto = 'Devuel' in est or 'Dispon' in est or 'Taller' in est or maquina == 'REPUESTO-SUELTO' %}
+    {% set es_repuesto = (maquina == 'REPUESTO-SUELTO' or r['pieza_id'] or r['pieza_nombre'] or r['pieza']) and maquina.startswith('VR') == false and maquina.startswith('NLS') == false %}
+    {% set es_devuelto = 'Devuel' in est or 'Dispon' in est or 'Taller' in est %}
     
-    {% if not es_devuelto %}
+    {% if es_repuesto and not es_devuelto %}
     <div class="modal fade text-start" id="modalDevolver{{ r['id'] }}" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow">
