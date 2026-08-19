@@ -56,12 +56,10 @@
                             <td>{{ p_nombre }}</td>
                             <td><i class="bi bi-geo-alt me-1 text-muted"></i>{{ p_ubicacion }}</td>
                             
-                            <!-- Stock Disponible y Estado Dinámico -->
+                            <!-- Stock Disponible y Estado Dinámico Corregido -->
                             <td class="text-center">
-                                {% if stock_disp > 1 %}
+                                {% if stock_disp > 0 %}
                                     <span class="badge bg-success fs-6">{{ stock_disp }} uds.</span>
-                                {% elif stock_disp == 1 %}
-                                    <span class="badge bg-warning text-dark fs-6"><i class="bi bi-bookmark-fill me-1"></i>Prestada (Queda 1)</span>
                                 {% else %}
                                     <span class="badge bg-danger fs-6"><i class="bi bi-x-circle me-1"></i>Agotado</span>
                                 {% endif %}
