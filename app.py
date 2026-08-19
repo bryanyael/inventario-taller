@@ -353,7 +353,7 @@ def devolver_pieza_suelta(pieza_id):
     c = conn.cursor()
 
     # 1. Obtener datos de la pieza para sumar stock si sirve
-    c.execute("SELECT * FROM  WHERE id = ?", (pieza_id,))
+    c.execute("SELECT * FROM piezas_sueltas WHERE id = ?", (pieza_id,))
     pieza = c.fetchone()
 
     if not pieza:
