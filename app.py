@@ -412,7 +412,7 @@ def usar_pieza_suelta(pieza_id):
     c = conn.cursor()
 
     # Buscamos la pieza por su ID exacto
-    c.execute("SELECT * FROM  WHERE id = ?", (pieza_id,))
+    c.execute("SELECT * FROM piezas_sueltas WHERE id = ?", (pieza_id,))
     pieza = c.fetchone()
 
     if not pieza:
