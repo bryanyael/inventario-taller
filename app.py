@@ -365,8 +365,7 @@ def devolver_pieza_suelta(pieza_id):
 
     if sigue_sirviendo == 'si':
         nuevo_stock = cantidad_actual + cantidad_devuelta
-        c.execute("UPDATE  SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
-
+       c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
     estado_texto = "Disponible (En Taller)" if sigue_sirviendo == 'si' else "Devuelto (Dañado/Descartado)"
     nuevo_motivo = f"Devolución registrada. Cantidad: {cantidad_devuelta}"
 
