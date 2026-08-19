@@ -224,8 +224,8 @@ def tomar_pieza_suelta(codigo):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
 
-    # Buscar la pieza por código o ID
-    c.execute("SELECT id, nombre, COALESCE(stock, cantidad, 0) FROM  WHERE codigo = ? OR id = ?", (codigo, codigo))
+    # Buscar la pieza por código o ID (Corregido con 'piezas_sueltas')
+    c.execute("SELECT id, nombre, COALESCE(stock, cantidad, 0) FROM piezas_sueltas WHERE codigo = ? OR id = ?", (codigo, codigo))
     pieza = c.fetchone()
 
     if pieza:
@@ -235,9 +235,9 @@ def tomar_pieza_suelta(codigo):
             nuevo_stock = stock_actual - cantidad_tomada
             
             try:
-                c.execute("UPDATE  SET stock = ? WHERE id = ?", (nuevo_stock, pieza_id))
+                c.execute("UPDATE piezas_sueltas SET stock = ? WHERE id = ?", (nuevo_stock, pieza_id))
             except sqlite3.OperationalError:
-                c.execute("UPDATE  SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
+                c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
 
             fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             motivo_completo = f"{motivo} (Cantidad: {cantidad_tomada})"
