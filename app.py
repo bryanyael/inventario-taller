@@ -393,71 +393,60 @@ def devolver_pieza_suelta(pieza_id):
 
     conn.close()
     return redirect(url_for('piezas_sueltas'))
+# Configuración
+UPLOAD_FOLDER = 'static/uploads'
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
 @app.route('/usar_pieza_suelta/<int:pieza_id>', methods=['POST'])
 def usar_pieza_suelta(pieza_id):
-    tecnico = request.form.get('tecnico', 'Taller')
-    motivo = request.form.get('motivo', 'Uso directo')
-    maquina_destino = request.form.get('maquina_destino', 'Uso General')
+    # 1. Obtener datos del formulario
+    tecnico = request.form.get('tecnico')
+    motivo = request.form.get('motivo')
+    cantidad = int(request.form.get('cantidad'))
     
-    try:
-        cantidad_tomada = int(request.form.get('cantidad', 1))
-    except (ValueError, TypeError):
-        cantidad_tomada = 1
+    # 2. Procesar la foto
+    foto_ruta = None
+    if 'foto' in request.files and request.files['foto'].filename != '':
+        file = request.files['foto']
+        filename = secure_filename(f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{file.filename}")
+        file.save(os.path.join(UPLOAD_FOLDER, filename))
+        foto_ruta = filename # Guardamos solo el nombre del archivo
 
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
+    # 3. Actualizar BD (Lógica de stock y registro en historial)
+    conn = sqlite3.connect('taller.db') # Ajusta el nombre de tu BD si es necesario
     c = conn.cursor()
-
-    # Buscamos la pieza por su ID exacto
-    c.execute("SELECT * FROM piezas_sueltas WHERE id = ?", (pieza_id,))
-    pieza = c.fetchone()
-
-    if not pieza:
-        conn.close()
-        return "Pieza no encontrada", 404
-
-    # Forzamos a usar siempre 'cantidad' (y si por alguna razón antigua existe 'stock', la tomamos como respaldo)
-    pieza_dict = dict(pieza)
-    cantidad_actual = int(pieza_dict.get('cantidad') if pieza_dict.get('cantidad') is not None else pieza_dict.get('stock', 0))
-
-    if cantidad_actual < cantidad_tomada:
-        conn.close()
-        return "No hay suficiente stock disponible", 400
-
-    nuevo_stock = cantidad_actual - cantidad_tomada
-
-    # Actualizamos directamente la columna 'cantidad' en la base de datos
-    c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
-
-    # Registramos en el historial
-    nombre_hist = pieza_dict.get('nombre', 'Pieza')
-    motivo_completo = f"{motivo} (Cantidad tomada: {cantidad_tomada})"
-    c.execute('''INSERT INTO historial (maquina_codigo, pieza_id, pieza_nombre, tecnico, motivo, estado_solicitud)
-                 VALUES (?, ?, ?, ?, ?, 'Uso Directo')''',
-              (maquina_destino, pieza_id, nombre_hist, tecnico, motivo_completo))
-
+    c.execute("UPDATE piezas_sueltas SET cantidad = cantidad - ? WHERE id = ?", (cantidad, pieza_id))
+    c.execute("INSERT INTO historial (pieza_id, tecnico, motivo, foto, fecha) VALUES (?, ?, ?, ?, ?)", 
+              (pieza_id, tecnico, f"{motivo} (Cantidad: {cantidad})", foto_ruta, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     conn.commit()
     conn.close()
+    return redirect(url_for('ver_piezas')) # O tu ruta actual
 
-    return redirect(url_for('piezas_sueltas'))
-# ==========================================
-# RUTAS DE ADMINISTRACIÓN Y HISTORIAL
+@app.route('/devolver_pieza_suelta/<int:pieza_id>', methods=['POST'])
+def devolver_pieza_suelta(pieza_id):
+    cantidad = int(request.form.get('cantidad'))
+    sigue_sirviendo = request.form.get('sigue_sirviendo')
+    
+    foto_ruta = None
+    if 'foto' in request.files and request.files['foto'].filename != '':
+        file = request.files['foto']
+        filename = secure_filename(f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{file.filename}")
+        file.save(os.path.join(UPLOAD_FOLDER, filename))
+        foto_ruta = filename
 
-@app.route('/piezas_sueltas')
-def piezas_sueltas():
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
+    conn = sqlite3.connect('taller.db')
     c = conn.cursor()
     
-    # Seleccionamos todas las piezas ordenadas de más reciente a más antigua, sin ocultarlas si llegan a 0
-    try:
-        c.execute("SELECT * FROM piezas_sueltas ORDER BY id DESC")
-    except sqlite3.OperationalError:
-        c.execute("SELECT * FROM piezas_sueltas ORDER BY id DESC")
-        
-    piezas = c.fetchall()
+    if sigue_sirviendo == 'si':
+        c.execute("UPDATE piezas_sueltas SET cantidad = cantidad + ? WHERE id = ?", (cantidad, pieza_id))
+    
+    c.execute("INSERT INTO historial (pieza_id, tecnico, motivo, foto, fecha) VALUES (?, ?, ?, ?, ?)", 
+              (pieza_id, 'Taller', f"Devolución: {'Funcional' if sigue_sirviendo == 'si' else 'Dañada'} (Cant: {cantidad})", foto_ruta, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+    
+    conn.commit()
     conn.close()
-    return render_template('piezas_sueltas.html', piezas=piezas)
+    return redirect(url_for('ver_piezas'))
 
 # ==========================================
 @app.route('/historial')
