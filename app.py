@@ -342,8 +342,8 @@ def enviar_solicitud():
 
 @app.route('/devolver_pieza_suelta/<int:pieza_id>', methods=['POST'])
 def devolver_pieza_suelta(pieza_id):
-    # Recogemos la opción elegida en el modal (por ejemplo, si sirve o está dañada)
-    estado_devolucion = request.form.get('estado', 'bueno') # o el nombre del campo que use tu HTML
+    # Capturamos los datos enviados por el formulario HTML
+    sigue_sirviendo = request.form.get('sigue_sirviendo', 'si')
     
     try:
         cantidad_a_devolver = int(request.form.get('cantidad', 1))
@@ -360,22 +360,34 @@ def devolver_pieza_suelta(pieza_id):
     if pieza:
         pieza_dict = dict(pieza)
         cantidad_actual = int(pieza_dict.get('cantidad', 0))
+        nombre_hist = pieza_dict.get('nombre', 'Pieza')
 
-        # Evaluamos si la pieza sigue sirviendo
-        # (Ajusta la condición según el valor exacto que mande tu HTML para "dañada / inservible")
-        if estado_devolucion in ['dañada', 'inservible', 'no']:
-            # Si está dañada, opcionalmente podemos restarla del stock activo o dejarla en 0
-            # Por ejemplo, si quieres restarla para que no se use:
-            nuevo_stock = max(0, cantidad_actual - cantidad_a_devolver)
-        else:
-            # Si sí sirve, regresa al stock sumando la cantidad
+        # Verificamos si la pieza sigue sirviendo
+        if sigue_sirviendo == 'si':
+            # Si sirve, regresa al stock sumando la cantidad
             nuevo_stock = cantidad_actual + cantidad_a_devolver
-
-        # Actualizamos la base de datos
-        try:
             c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
+            estado_historial = 'Devolución (Funcional)'
+            motivo_historial = f"Devolución a stock (Cantidad: {cantidad_a_devolver})"
+        else:
+            # Si NO sirve (dañada/inservible), el stock NO se incrementa
+            # Opcional: si quieres descontarla o dejarla igual, aquí se queda intacto el inventario
+            estado_historial = 'Devolución (Dañada/Inservible)'
+            motivo_historial = f"Reportada como dañada/inservible (Cantidad: {cantidad_a_devolver})"
+
+        # Registramos el movimiento en el historial
+        fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            c.execute('''INSERT INTO historial (maquina_codigo, pieza_id, pieza_nombre, tecnico, motivo, estado_solicitud, fecha_registro)
+                         VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                      ('DEVOLUCIÓN', pieza_id, nombre_hist, 'Taller', motivo_historial, estado_historial, fecha_actual))
         except sqlite3.OperationalError:
-            c.execute("UPDATE piezas_sueltas SET stock = ? WHERE id = ?", (nuevo_stock, pieza_id))
+            try:
+                c.execute('''INSERT INTO historial (maquina_codigo, pieza_id, tecnico, motivo, estado_solicitud)
+                             VALUES (?, ?, ?, ?, ?)''',
+                          ('DEVOLUCIÓN', pieza_id, 'Taller', motivo_historial, estado_historial))
+            except sqlite3.OperationalError:
+                pass
 
         conn.commit()
 
