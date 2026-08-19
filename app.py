@@ -678,7 +678,10 @@ def cargar_excel():
 def imprimir_qrs():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute("SELECT codigo, marca, modelo FROM maquinas")
+    
+    # MODIFICACIÓN: Agregamos el filtro para traer solo las disponibles
+    cursor.execute("SELECT codigo, marca, modelo FROM maquinas WHERE estado = 'Disponible'")
+    
     rows = cursor.fetchall()
     conn.close()
 
