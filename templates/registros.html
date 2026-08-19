@@ -9,63 +9,22 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     
     <style>
-        body { 
-            background-color: #f4f6f9; 
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
-        }
-        .main-card {
-            border: none;
-            border-radius: 16px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.05);
-        }
-        .table thead th {
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.75rem;
-            letter-spacing: 0.8px;
-            color: #6c757d;
-            border-bottom: 2px solid #eef2f7;
-        }
-        .table tbody td {
-            padding: 14px 12px;
-            vertical-align: middle;
-        }
-        .badge-code {
-            font-family: monospace;
-            font-size: 0.85rem;
-            padding: 5px 10px;
-            border-radius: 6px;
-        }
-        .btn-custom-action {
-            border-radius: 8px;
-            font-weight: 500;
-            padding: 6px 14px;
-        }
-        /* Corrección definitiva para modales flotantes en móviles */
-        .modal {
-            z-index: 1056 !important;
-        }
-        .modal-backdrop {
-            z-index: 1055 !important;
-            opacity: 0.5 !important;
-        }
-        body.modal-open {
-            overflow: auto !important;
-            padding-right: 0 !important;
-        }
-        @media (max-width: 576px) {
-            .modal-dialog {
-                margin: 0.5rem;
-                max-width: calc(100% - 1rem);
-            }
-        }
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+        .main-card { border: none; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.05); }
+        .table thead th { font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.8px; color: #6c757d; border-bottom: 2px solid #eef2f7; }
+        .table tbody td { padding: 14px 12px; vertical-align: middle; }
+        .badge-code { font-family: monospace; font-size: 0.85rem; padding: 5px 10px; border-radius: 6px; }
+        .btn-custom-action { border-radius: 8px; font-weight: 500; padding: 6px 14px; }
+        .modal { z-index: 1056 !important; }
+        .modal-backdrop { z-index: 1055 !important; opacity: 0.5 !important; }
+        body.modal-open { overflow: auto !important; padding-right: 0 !important; }
+        @media (max-width: 576px) { .modal-dialog { margin: 0.5rem; max-width: calc(100% - 1rem); } }
     </style>
 </head>
 <body>
 
     <div class="container py-4 py-md-5">
         
-        <!-- Encabezado con Botones de Acción -->
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
             <div>
                 <h2 class="fw-bold text-dark mb-1">
@@ -84,7 +43,6 @@
             </div>
         </div>
 
-        <!-- Tarjeta Principal del Historial -->
         <div class="card main-card bg-white p-3 p-md-4">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
@@ -102,10 +60,12 @@
                     </thead>
                     <tbody>
                         {% for r in registros %}
+                        {% set maquina = r['maquina_codigo'] or r['maquina'] or 'REPUESTO-SUELTO' %}
                         {% set est = (r['estado_solicitud'] or r['estado'] or '')|string %}
-                        {% set es_devuelto = 'Devuel' in est or 'Dispon' in est or 'Taller' in est %}
+                        {# Es devuelto si el estado lo indica O si viene de repuesto suelto #}
+                        {% set es_devuelto = 'Devuel' in est or 'Dispon' in est or 'Taller' in est or maquina == 'REPUESTO-SUELTO' %}
+                        
                         <tr>
-                            <!-- Fecha -->
                             <td class="text-nowrap">
                                 <i class="bi bi-calendar3 text-muted me-1 small"></i>
                                 <span class="small fw-medium text-secondary">
@@ -113,14 +73,12 @@
                                 </span>
                             </td>
 
-                            <!-- Máquina / Origen -->
                             <td>
                                 <span class="badge bg-secondary-subtle text-secondary-emphasis border badge-code">
-                                    {{ r['maquina_codigo'] or r['maquina'] or 'REPUESTO-SUELTO' }}
+                                    {{ maquina }}
                                 </span>
                             </td>
 
-                            <!-- Pieza / Repuesto -->
                             <td>
                                 {% set pieza_val = r['pieza_nombre'] or r['pieza'] %}
                                 {% if pieza_val and pieza_val != '—' and pieza_val != 'None' and pieza_val != '' %}
@@ -130,24 +88,21 @@
                                 {% endif %}
                             </td>
 
-                            <!-- Técnico -->
                             <td class="fw-medium text-dark">
                                 <i class="bi bi-person-circle text-muted me-1"></i>
                                 {{ r['tecnico'] or '—' }}
                             </td>
 
-                            <!-- Motivo / Destino -->
                             <td>
                                 <span class="text-muted small">
                                     {{ r['motivo'] or r['destino'] or '—' }}
                                 </span>
                             </td>
 
-                            <!-- Estado -->
                             <td>
                                 {% if es_devuelto %}
                                     <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">
-                                        <i class="bi bi-check-circle me-1"></i> Disponible (En Taller)
+                                        <i class="bi bi-check-circle me-1"></i> Devuelto (En Taller)
                                     </span>
                                 {% else %}
                                     <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill">
@@ -156,7 +111,6 @@
                                 {% endif %}
                             </td>
 
-                            <!-- Evidencia / Foto -->
                             <td class="text-center">
                                 {% set foto = r['foto_evidencia'] or r['foto_url'] or r['foto'] %}
                                 {% if foto and foto != 'Sin foto' and foto != 'None' and foto != '' %}
@@ -167,7 +121,6 @@
                                     {% else %}
                                         {% set ruta_final = url_for('static', filename='evidencias/' ~ foto) %}
                                     {% endif %}
-                                    
                                     <a href="{{ ruta_final }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill py-1 px-3 fw-medium">
                                         <i class="bi bi-image me-1"></i> Ver Foto
                                     </a>
@@ -176,14 +129,13 @@
                                 {% endif %}
                             </td>
 
-                            <!-- Acción: Botón Devolver -->
                             <td class="text-center">
                                 {% if not es_devuelto %}
                                     <button class="btn btn-sm btn-success rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#modalDevolver{{ r['id'] }}">
                                         <i class="bi bi-arrow-return-left me-1"></i> Devolver
                                     </button>
                                 {% else %}
-                                    <span class="text-muted small"><i class="bi bi-check-all me-1"></i>Completado</span>
+                                    <span class="text-muted small fw-bold"><i class="bi bi-check-all me-1"></i>Devuelto</span>
                                 {% endif %}
                             </td>
                         </tr>
@@ -199,26 +151,25 @@
                 </table>
             </div>
         </div>
-
     </div>
 
-    <!-- MODALES DE DEVOLUCIÓN FUERA DE LA TABLA (Para que floten limpios en la pantalla) -->
+    <!-- Modales -->
     {% for r in registros %}
+    {% set maquina = r['maquina_codigo'] or r['maquina'] or 'REPUESTO-SUELTO' %}
     {% set est = (r['estado_solicitud'] or r['estado'] or '')|string %}
-    {% set es_devuelto = 'Devuel' in est or 'Dispon' in est or 'Taller' in est %}
+    {% set es_devuelto = 'Devuel' in est or 'Dispon' in est or 'Taller' in est or maquina == 'REPUESTO-SUELTO' %}
+    
     {% if not es_devuelto %}
-    {% set pieza_val = r['pieza_nombre'] or r['pieza'] %}
     <div class="modal fade text-start" id="modalDevolver{{ r['id'] }}" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow">
-                <!-- ACCIÓN ACTUALIZADA CON CÓDIGO Y PIEZA_ID -->
-                <form action="/devolver_pieza/{{ r['maquina_codigo'] or r['maquina'] or 'SIN_CODIGO' }}/{{ r['pieza_id'] }}" method="POST" enctype="multipart/form-data">
+                <form action="/devolver_pieza/{{ maquina }}/{{ r['pieza_id'] }}" method="POST" enctype="multipart/form-data">
                     <div class="modal-header bg-success text-white">
                         <h5 class="modal-title fw-bold fs-6"><i class="bi bi-arrow-return-left me-2"></i>Devolver Repuesto</h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body p-3">
-                        <p class="mb-3 text-secondary small">Vas a registrar el retorno de: <strong class="text-dark">{{ pieza_val }}</strong></p>
+                        <p class="mb-3 text-secondary small">Vas a registrar el retorno de: <strong class="text-dark">{{ r['pieza_nombre'] or r['pieza'] }}</strong></p>
                         <div class="mb-3">
                             <label class="form-label fw-bold small text-muted">EVIDENCIA EN FOTO (OPCIONAL)</label>
                             <input type="file" name="foto_evidencia" class="form-control" accept="image/*" capture="environment">
@@ -235,22 +186,6 @@
     {% endif %}
     {% endfor %}
 
-    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            var modales = document.querySelectorAll('.modal');
-            modales.forEach(function (modal) {
-                modal.addEventListener('hidden.bs.modal', function () {
-                    document.querySelectorAll('.modal-backdrop').forEach(function (el) {
-                        el.remove();
-                    });
-                    document.body.classList.remove('modal-open');
-                    document.body.style.overflow = '';
-                    document.body.style.paddingRight = '';
-                });
-            });
-        });
-    </script>
 </body>
 </html>
