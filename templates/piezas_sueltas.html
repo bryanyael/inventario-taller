@@ -56,10 +56,12 @@
                             <td>{{ p_nombre }}</td>
                             <td><i class="bi bi-geo-alt me-1 text-muted"></i>{{ p_ubicacion }}</td>
                             
-                            <!-- Stock Disponible Real -->
+                            <!-- Stock Disponible y Estado Dinámico -->
                             <td class="text-center">
-                                {% if stock_disp > 0 %}
+                                {% if stock_disp > 1 %}
                                     <span class="badge bg-success fs-6">{{ stock_disp }} uds.</span>
+                                {% elif stock_disp == 1 %}
+                                    <span class="badge bg-warning text-dark fs-6"><i class="bi bi-bookmark-fill me-1"></i>Prestada (Queda 1)</span>
                                 {% else %}
                                     <span class="badge bg-danger fs-6"><i class="bi bi-x-circle me-1"></i>Agotado</span>
                                 {% endif %}
@@ -108,7 +110,6 @@
                     <h5 class="modal-title fw-bold fs-6"><i class="bi bi-box-arrow-down me-2"></i>Tomar: {{ p_nombre }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <!-- Agregado enctype para soportar subida de archivos -->
                 <form action="{{ url_for('usar_pieza_suelta', pieza_id=pieza['id']) }}" method="POST" enctype="multipart/form-data">
                     <div class="modal-body p-3">
                         <div class="mb-3">
@@ -123,7 +124,6 @@
                             <label class="form-label fw-bold small">¿Para qué máquina o trabajo se usará?</label>
                             <input type="text" name="motivo" class="form-control" placeholder="Ej. Mantenimiento" required>
                         </div>
-                        <!-- Campo de Fotografía / Evidencia -->
                         <div class="mb-3">
                             <label class="form-label fw-bold small"><i class="bi bi-camera me-1"></i>Evidencia / Foto (Opcional):</label>
                             <input type="file" name="foto" class="form-control" accept="image/*">
@@ -150,7 +150,6 @@
                     <h5 class="modal-title fw-bold fs-6"><i class="bi bi-box-arrow-up me-2"></i>Devolver: {{ p_nombre }}</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <!-- Agregado enctype para soportar subida de archivos -->
                 <form action="{{ url_for('devolver_pieza_suelta', pieza_id=pieza['id']) }}" method="POST" enctype="multipart/form-data">
                     <div class="modal-body p-3">
                         <div class="mb-3">
@@ -164,7 +163,6 @@
                                 <option value="no">No, está dañada / inservible (Solo registrar en historial)</option>
                             </select>
                         </div>
-                        <!-- Campo de Fotografía / Evidencia -->
                         <div class="mb-3">
                             <label class="form-label fw-bold small"><i class="bi bi-camera me-1"></i>Evidencia / Foto de la pieza (Opcional):</label>
                             <input type="file" name="foto" class="form-control" accept="image/*">
