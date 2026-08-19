@@ -342,7 +342,14 @@ def enviar_solicitud():
 
 @app.route('/devolver_pieza_suelta/<int:pieza_id>', methods=['POST'])
 def devolver_pieza_suelta(pieza_id):
-    # Asegúrate de que todas estas líneas usen el mismo tipo de espacios/tabulaciones
+    # Recogemos la opción elegida en el modal (por ejemplo, si sirve o está dañada)
+    estado_devolucion = request.form.get('estado', 'bueno') # o el nombre del campo que use tu HTML
+    
+    try:
+        cantidad_a_devolver = int(request.form.get('cantidad', 1))
+    except (ValueError, TypeError):
+        cantidad_a_devolver = 1
+
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
@@ -353,10 +360,23 @@ def devolver_pieza_suelta(pieza_id):
     if pieza:
         pieza_dict = dict(pieza)
         cantidad_actual = int(pieza_dict.get('cantidad', 0))
-        nuevo_stock = cantidad_actual + 1
 
-        # Línea corregida con el nombre de la tabla y una indentación limpia
-        c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
+        # Evaluamos si la pieza sigue sirviendo
+        # (Ajusta la condición según el valor exacto que mande tu HTML para "dañada / inservible")
+        if estado_devolucion in ['dañada', 'inservible', 'no']:
+            # Si está dañada, opcionalmente podemos restarla del stock activo o dejarla en 0
+            # Por ejemplo, si quieres restarla para que no se use:
+            nuevo_stock = max(0, cantidad_actual - cantidad_a_devolver)
+        else:
+            # Si sí sirve, regresa al stock sumando la cantidad
+            nuevo_stock = cantidad_actual + cantidad_a_devolver
+
+        # Actualizamos la base de datos
+        try:
+            c.execute("UPDATE piezas_sueltas SET cantidad = ? WHERE id = ?", (nuevo_stock, pieza_id))
+        except sqlite3.OperationalError:
+            c.execute("UPDATE piezas_sueltas SET stock = ? WHERE id = ?", (nuevo_stock, pieza_id))
+
         conn.commit()
 
     conn.close()
