@@ -363,7 +363,8 @@ def devolver_pieza_suelta(pieza_id):
     if sigue_sirviendo == 'si':
         c.execute("UPDATE piezas_sueltas SET cantidad = cantidad + ? WHERE id = ?", (cantidad, pieza_id))
     
-    c.execute("""INSERT INTO historial (pieza_id, tecnico, motivo, foto, fecha_registro) 
+    # Aquí también usamos 'foto_evidencia'
+    c.execute("""INSERT INTO historial (pieza_id, tecnico, motivo, foto_evidencia, fecha_registro) 
                  VALUES (?, ?, ?, ?, ?)""", 
               (pieza_id, 'Taller', f"Devolución: {'Funcional' if sigue_sirviendo == 'si' else 'Dañada'} (Cant: {cantidad})", foto_ruta, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     
@@ -381,7 +382,6 @@ def usar_pieza_suelta(pieza_id):
     except (ValueError, TypeError):
         cantidad = 1
     
-    # Procesar la foto
     foto_ruta = None
     if 'foto' in request.files and request.files['foto'].filename != '':
         file = request.files['foto']
@@ -389,16 +389,14 @@ def usar_pieza_suelta(pieza_id):
         file.save(os.path.join(UPLOAD_FOLDER, filename))
         foto_ruta = f"uploads/{filename}"
 
-    # Usamos DB_NAME (o la variable que use tu app para conectar a la BD correcta)
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
-    # Actualizamos la tabla correcta de piezas sueltas
     c.execute("UPDATE piezas_sueltas SET cantidad = cantidad - ? WHERE id = ?", (cantidad, pieza_id))
     
-    # Insertamos en el historial asegurando que guarde la foto
-    c.execute("""INSERT INTO historial (pieza_id, tecnico, motivo, foto, fecha_registro) 
+    # Aquí usamos 'foto_evidencia' en lugar de 'foto'
+    c.execute("""INSERT INTO historial (pieza_id, tecnico, motivo, foto_evidencia, fecha_registro) 
                  VALUES (?, ?, ?, ?, ?)""", 
               (pieza_id, tecnico, f"{motivo} (Cantidad: {cantidad})", foto_ruta, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     
