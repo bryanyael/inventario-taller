@@ -3,19 +3,17 @@ import sqlite3
 import csv
 from io import StringIO
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, Response, session
+from flask import Flask, render_template, request, redirect, url_for, Response
 import pandas as pd
 from werkzeug.utils import secure_filename
+from flask import Flask, render_template, request, session, redirect, url_for
 
-# ÚNICA instancia de Flask para todo el proyecto
+
+
 app = Flask(__name__)
-app.secret_key = 'clave_secreta_taller_inventario'
-
 # Carpeta donde se guardarán las fotos de evidencia
-UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'evidencias')
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+UPLOAD_FOLDER = 'static/evidencias'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
 # Configuración de ruta absoluta para la BD
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_NAME = os.path.join(BASE_DIR, "inventario.db")
@@ -23,7 +21,6 @@ DB_NAME = os.path.join(BASE_DIR, "inventario.db")
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    
     # Tabla de máquinas
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS maquinas (
@@ -33,10 +30,11 @@ def init_db():
             numero_serie TEXT,
             ubicacion TEXT,
             estado TEXT
+
         )
+
     ''')
-    
-    # Tabla de piezas asociadas a máquinas
+ # Tabla de piezas asociadas a máquinas
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS piezas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,10 +44,13 @@ def init_db():
             estado TEXT,
             disponible INTEGER DEFAULT 1,
             FOREIGN KEY (maquina_codigo) REFERENCES maquinas (codigo)
+
         )
+
     ''')
-    
-    # NUEVA TABLA: Piezas sueltas / Stock general
+
+  # NUEVA TABLA: Piezas sueltas / Stock general
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS piezas_sueltas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,9 +60,10 @@ def init_db():
             cantidad INTEGER DEFAULT 1,
             ubicacion TEXT DEFAULT 'Taller',
             estado TEXT DEFAULT 'Nuevo'
+
         )
+
     ''')
-    
     # Tabla de historial de movimientos
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS historial (
@@ -76,30 +78,44 @@ def init_db():
             fecha_devuelto TEXT,
             foto_evidencia TEXT,
             fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
         )
+
     ''')
 
     # Garantizar columnas opcionales
     try:
         cursor.execute("ALTER TABLE maquinas ADD COLUMN destino TEXT;")
-    except sqlite3.OperationalError:
-        pass
 
+    except sqlite3.OperationalError:
+
+        pass
     try:
         cursor.execute("ALTER TABLE maquinas ADD COLUMN tecnico_cargo TEXT;")
     except sqlite3.OperationalError:
         pass
-
     try:
         cursor.execute("ALTER TABLE historial ADD COLUMN foto_evidencia TEXT;")
     except sqlite3.OperationalError:
         pass
-
     conn.commit()
     conn.close()
 
 # Inicializar BD y carpetas
 init_db()
+
+UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'evidencias')
+
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+# ==========================================
+# RUTAS PÚBLICAS Y MÁQUINAS
+# =========================================
+
+app = Flask(__name__)
+
+app.secret_key = 'clave_secreta_taller_inventario'
 @app.route('/')
 def inicio():
     # 1. Verificamos si es admin
