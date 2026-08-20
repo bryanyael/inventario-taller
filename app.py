@@ -3,15 +3,19 @@ import sqlite3
 import csv
 from io import StringIO
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, Response
+from flask import Flask, render_template, request, redirect, url_for, Response, session
 import pandas as pd
 from werkzeug.utils import secure_filename
-from flask import Flask, render_template, request, session, redirect, url_for
 
+# ÚNICA instancia de Flask para todo el proyecto
 app = Flask(__name__)
+app.secret_key = 'clave_secreta_taller_inventario'
+
 # Carpeta donde se guardarán las fotos de evidencia
-UPLOAD_FOLDER = 'static/evidencias'
+UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'evidencias')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
 # Configuración de ruta absoluta para la BD
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_NAME = os.path.join(BASE_DIR, "inventario.db")
@@ -31,7 +35,8 @@ def init_db():
             estado TEXT
         )
     ''')
- # Tabla de piezas asociadas a máquinas
+    
+    # Tabla de piezas asociadas a máquinas
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS piezas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,7 +48,8 @@ def init_db():
             FOREIGN KEY (maquina_codigo) REFERENCES maquinas (codigo)
         )
     ''')
-  # NUEVA TABLA: Piezas sueltas / Stock general
+    
+    # NUEVA TABLA: Piezas sueltas / Stock general
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS piezas_sueltas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -94,20 +100,6 @@ def init_db():
 
 # Inicializar BD y carpetas
 init_db()
-
-UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'evidencias')
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-
-# ==========================================
-# RUTAS PÚBLICAS Y MÁQUINAS
-# ==========================================
-
-app = Flask(__name__)
-app.secret_key = 'clave_secreta_taller_inventario'
-
-# --- RUTA PRINCIPAL (Integrada con SQLite y Admin) ---
 @app.route('/')
 def inicio():
     # 1. Verificamos si es admin
