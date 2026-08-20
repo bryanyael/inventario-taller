@@ -156,7 +156,7 @@ def maquina(codigo):
 
     if not maq_data:
         conn.close()
-        return "<h1>❌ Máquina no encontrada en el taller</h1>", 404
+        return "<h1>❌ Máquina no registrada en el sistema</h1>", 404
 
     maquina_info = {
         "marca": maq_data[1],
