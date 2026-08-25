@@ -11,6 +11,14 @@
         .custom-card { border: none; border-radius: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         .pieza-box { border-bottom: 1px solid #edf2f7; }
         .pieza-box:last-child { border-bottom: none; }
+        /* Estilos para el lienzo de firma */
+        .signature-pad {
+            width: 100%;
+            height: 140px;
+            background-color: #ffffff;
+            cursor: crosshair;
+            touch-action: none;
+        }
     </style>
 </head>
 <body>
@@ -68,16 +76,31 @@
                             <div class="modal fade" id="modalDevolver{{ p.id }}" tabindex="-1" aria-hidden="true">
                                 <div class="modal-dialog modal-dialog-centered">
                                     <div class="modal-content text-start">
-                                        <form action="/devolver_pieza/{{ codigo }}/{{ p.id }}" method="POST" enctype="multipart/form-data" onsubmit="comprimirImagen(event, this)">
+                                        <form action="/devolver_pieza/{{ codigo }}/{{ p.id }}" method="POST" enctype="multipart/form-data" onsubmit="prepararEnvio(event, this)">
                                             <div class="modal-header">
                                                 <h5 class="modal-title fw-bold">Devolver: {{ p.nombre }}</h5>
                                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                             </div>
                                             <div class="modal-body">
+                                                <!-- Campo Foto -->
                                                 <div class="mb-3">
                                                     <label class="form-label fw-semibold">Foto / Comprobante (Opcional)</label>
                                                     <input type="file" name="foto_evidencia" class="form-control input-foto" accept="image/*" capture="environment">
                                                     <div class="form-text">Toma una foto de la entrega de la pieza.</div>
+                                                </div>
+
+                                                <!-- NUEVO: Campo Firma Digital -->
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-semibold">Firma del Técnico (Obligatorio o Sugerido)</label>
+                                                    <div class="border rounded bg-light p-2 text-center">
+                                                        <canvas id="signature-pad-{{ p.id }}" class="signature-pad border rounded"></canvas>
+                                                        <input type="hidden" name="firma" id="firma-input-{{ p.id }}">
+                                                        <div class="mt-2">
+                                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 limpiar-firma" data-id="{{ p.id }}">
+                                                                <i class="bi bi-eraser me-1"></i> Limpiar Firma
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div class="modal-footer">
@@ -108,18 +131,103 @@
     <!-- Scripts Bootstrap -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- Script de Compresión Instantánea en el Celular -->
+    <!-- Script Unificado de Compresión de Imagen y Captura de Firma -->
     <script>
-    function comprimirImagen(e, form) {
+    document.addEventListener("DOMContentLoaded", function() {
+        // Inicializar los canvas de firma cuando se abren los modales
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            modal.addEventListener('shown.bs.modal', function () {
+                const canvas = this.querySelector('.signature-pad');
+                if (canvas && !canvas.dataset.initialized) {
+                    canvas.dataset.initialized = "true";
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Ajustar tamaño real del canvas según su contenedor
+                    canvas.width = canvas.offsetWidth;
+                    canvas.height = 140;
+
+                    let dibujando = false;
+
+                    const obtenerPosicion = (e) => {
+                        const rect = canvas.getBoundingClientRect();
+                        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+                        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+                        return {
+                            x: clientX - rect.left,
+                            y: clientY - rect.top
+                        };
+                    };
+
+                    const empezarTrazo = (e) => {
+                        e.preventDefault();
+                        dibujando = true;
+                        const pos = obtenerPosicion(e);
+                        ctx.beginPath();
+                        ctx.moveTo(pos.x, pos.y);
+                    };
+
+                    const dibujarTrazo = (e) => {
+                        if (!dibujando) return;
+                        e.preventDefault();
+                        const pos = obtenerPosicion(e);
+                        ctx.lineTo(pos.x, pos.y);
+                        ctx.strokeStyle = "#000";
+                        ctx.lineWidth = 2;
+                        ctx.lineCap = "round";
+                        ctx.stroke();
+                    };
+
+                    const terminarTrazo = () => { dibujando = false; };
+
+                    // Eventos de Mouse
+                    canvas.addEventListener('mousedown', empezarTrazo);
+                    canvas.addEventListener('mousemove', dibujarTrazo);
+                    window.addEventListener('mouseup', terminarTrazo);
+
+                    // Eventos Táctiles (Celulares / Tablets)
+                    canvas.addEventListener('touchstart', empezarTrazo, { passive: false });
+                    canvas.addEventListener('touchmove', dibujarTrazo, { passive: false });
+                    canvas.addEventListener('touchend', terminarTrazo);
+                }
+            });
+        });
+
+        // Botones para limpiar firma
+        document.querySelectorAll('.limpiar-firma').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const id = this.getAttribute('data-id');
+                const canvas = document.getElementById(`signature-pad-${id}`);
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                document.getElementById(`firma-input-${id}`).value = "";
+            });
+        });
+    });
+
+    // Función que comprime la foto y guarda la firma en el input oculto antes de enviar
+    function prepararEnvio(e, form) {
+        e.preventDefault();
         const fileInput = form.querySelector('.input-foto');
         const btnEnviar = form.querySelector('.btn-enviar');
-        
-        if (fileInput.files.length === 0) return; // Si no subió foto, continúa normal
-        
-        e.preventDefault(); // Pausar envío para comprimir
+        const canvas = form.querySelector('.signature-pad');
+        const firmaInput = form.querySelector('input[name="firma"]');
+
+        // Guardar la firma en formato Base64 si el canvas existe
+        if (canvas) {
+            firmaInput.value = canvas.toDataURL('image/png');
+        }
+
         btnEnviar.disabled = true;
         btnEnviar.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Procesando...';
 
+        // Si no hay foto, enviamos el formulario directo
+        if (!fileInput || fileInput.files.length === 0) {
+            form.submit();
+            return;
+        }
+
+        // Si hay foto, procedemos a comprimirla igual que antes
         const file = fileInput.files[0];
         const reader = new FileReader();
 
@@ -127,8 +235,8 @@
             const img = new Image();
             img.src = event.target.result;
             img.onload = function() {
-                const canvas = document.createElement('canvas');
-                const max_width = 800; // Reducir tamaño máximo a 800px
+                const imgCanvas = document.createElement('canvas');
+                const max_width = 800;
                 let width = img.width;
                 let height = img.height;
 
@@ -137,19 +245,18 @@
                     width = max_width;
                 }
 
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
+                imgCanvas.width = width;
+                imgCanvas.height = height;
+                const ctx = imgCanvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
 
-                // Convertir a JPEG comprimido
-                canvas.toBlob(function(blob) {
+                imgCanvas.toBlob(function(blob) {
                     const newFile = new File([blob], file.name, { type: 'image/jpeg' });
                     const container = new DataTransfer();
                     container.items.add(newFile);
                     fileInput.files = container.files;
                     
-                    form.submit(); // Enviar formulario ya comprimido
+                    form.submit(); // Envío final con la foto comprimida y la firma lista
                 }, 'image/jpeg', 0.7);
             }
         }
