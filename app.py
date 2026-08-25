@@ -232,10 +232,9 @@ def tomar_pieza_suelta(codigo):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
 
-    # Buscar la pieza por código o ID
-    c.execute("SELECT id, nombre, COALESCE(stock, cantidad, 0) FROM piezas_sueltas WHERE codigo = ? OR id = ?", (codigo, codigo))
+# Buscar la pieza por codigo_parte o ID, usando la columna correcta 'cantidad'
+    c.execute("SELECT id, nombre, cantidad FROM piezas_sueltas WHERE codigo_parte = ? OR id = ?", (codigo, codigo))
     pieza = c.fetchone()
-
     if pieza:
         pieza_id, nombre_pieza, stock_actual = pieza[0], pieza[1], pieza[2]
 
