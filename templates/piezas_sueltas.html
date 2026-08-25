@@ -30,7 +30,20 @@
             </div>
             <a href="/" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Volver al Inicio</a>
         </div>
-
+        <!-- Barra de Búsqueda -->
+                <div class="card card-custom p-3 mb-4">
+                    <form method="GET" action="" class="row g-3 align-items-center">
+                        <div class="col-md-10">
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                                <input type="text" name="q" value="{{ request.args.get('q', '') }}" class="form-control border-start-0 ps-0" placeholder="Buscar por código, nombre o ubicación de la pieza...">
+                            </div>
+                        </div>
+                        <div class="col-md-2 d-grid">
+                            <button type="submit" class="btn btn-primary fw-bold rounded-pill shadow-sm">Buscar</button>
+                        </div>
+                    </form>
+                </div>
         <!-- Tabla de Piezas / Repuestos -->
         <div class="card card-custom p-4">
             <div class="table-responsive">
