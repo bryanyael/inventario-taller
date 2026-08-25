@@ -354,6 +354,42 @@ def enviar_solicitud():
         </a>
     </div>
     """
+    @app.route('/devolver_pieza/<codigo>/<int:pieza_id>', methods=['POST'])
+def devolver_pieza_maquina(codigo, pieza_id):
+    # 1. Capturar la firma digital y la foto de evidencia del modal
+    firma = request.form.get('firma')
+    foto_ruta = None
+    
+    if 'foto_evidencia' in request.files and request.files['foto_evidencia'].filename != '':
+        file = request.files['foto_evidencia']
+        filename = secure_filename(f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{file.filename}")
+        file.save(os.path.join(UPLOAD_FOLDER, filename))
+        foto_ruta = f"uploads/{filename}"
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    # 2. Volver a marcar la pieza de la máquina como disponible
+    cursor.execute("UPDATE piezas SET disponible = 1, estado = 'Disponible' WHERE id = ?", (pieza_id,))
+
+    # 3. Guardar el registro en el historial con la firma y foto
+    fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        cursor.execute('''
+            INSERT INTO historial (maquina_codigo, pieza_id, pieza_nombre, estado_solicitud, firma, foto_evidencia, fecha_registro)
+            VALUES (?, ?, (SELECT nombre FROM piezas WHERE id = ?), 'Devuelto', ?, ?, ?)
+        ''', (codigo, pieza_id, pieza_id, firma, foto_ruta, fecha_actual))
+    except sqlite3.OperationalError:
+        cursor.execute('''
+            INSERT INTO historial (maquina_codigo, pieza_id, pieza_nombre, estado_solicitud, firma, foto_evidencia, fecha)
+            VALUES (?, ?, (SELECT nombre FROM piezas WHERE id = ?), 'Devuelto', ?, ?, ?)
+        ''', (codigo, pieza_id, pieza_id, firma, foto_ruta, fecha_actual))
+
+    conn.commit()
+    conn.close()
+
+    # 4. Redirigir de vuelta a la página de la máquina
+    return redirect(f"/maquina/{codigo}")
 
 
 @app.route('/devolver_pieza_suelta/<int:pieza_id>', methods=['POST'])
