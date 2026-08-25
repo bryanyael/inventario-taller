@@ -64,7 +64,7 @@ def init_db():
         )
 
     ''')
-    # Tabla de historial de movimientos
+# Tabla de historial de movimientos
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS historial (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,10 +77,9 @@ def init_db():
             estado_solicitud TEXT DEFAULT 'Pendiente',
             fecha_devuelto TEXT,
             foto_evidencia TEXT,
+            firma TEXT,
             fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
         )
-
     ''')
 
     # Garantizar columnas opcionales
@@ -219,11 +218,12 @@ def solicitar(codigo, pieza_id):
     return render_template("solicitud.html", maquina=maquina_info, codigo=codigo, pieza=pieza_info)
 
 # Módulos de piezas sueltas
-
 @app.route('/piezas/tomar/<codigo>', methods=['POST'])
 def tomar_pieza_suelta(codigo):
     tecnico = request.form.get('tecnico', 'Taller')
     motivo = request.form.get('motivo', 'Uso en taller / campo')
+    firma = request.form.get('firma_imagen', '') # <--- Capturamos la firma del formulario
+    
     try:
         cantidad_tomada = int(request.form.get('cantidad', 1))
     except (ValueError, TypeError):
@@ -232,7 +232,7 @@ def tomar_pieza_suelta(codigo):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
 
-    # Buscar la pieza por código o ID (Corregido con 'piezas_sueltas')
+    # Buscar la pieza por código o ID
     c.execute("SELECT id, nombre, COALESCE(stock, cantidad, 0) FROM piezas_sueltas WHERE codigo = ? OR id = ?", (codigo, codigo))
     pieza = c.fetchone()
 
@@ -250,22 +250,22 @@ def tomar_pieza_suelta(codigo):
             fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             motivo_completo = f"{motivo} (Cantidad: {cantidad_tomada})"
             
+            # Incluimos 'firma' en las consultas de inserción al historial
             try:
                 c.execute("""INSERT INTO historial 
-                             (maquina_codigo, pieza_id, tecnico, motivo, estado_solicitud, fecha_registro)
-                             VALUES (?, ?, ?, ?, 'Entregado', ?)""",
-                          ('REPUESTO-SUELTO', pieza_id, tecnico, motivo_completo, fecha_actual))
+                            (maquina_codigo, pieza_id, tecnico, motivo, estado_solicitud, firma, fecha_registro)
+                            VALUES (?, ?, ?, ?, 'Entregado', ?, ?)""",
+                          ('REPUESTO-SUELTO', pieza_id, tecnico, motivo_completo, firma, fecha_actual))
             except sqlite3.OperationalError:
                 c.execute("""INSERT INTO historial 
-                             (maquina_codigo, pieza_id, tecnico, motivo, estado_solicitud, fecha)
-                             VALUES (?, ?, ?, ?, 'Entregado', ?)""",
-                          ('REPUESTO-SUELTO', pieza_id, tecnico, motivo_completo, fecha_actual))
+                            (maquina_codigo, pieza_id, tecnico, motivo, estado_solicitud, firma, fecha)
+                            VALUES (?, ?, ?, ?, 'Entregado', ?, ?)""",
+                          ('REPUESTO-SUELTO', pieza_id, tecnico, motivo_completo, firma, fecha_actual))
 
             conn.commit()
 
     conn.close()
     return redirect('/')
-
 @app.route('/maquina/rentar/<codigo>', methods=['POST'])
 def rentar_maquina(codigo):
     destino = request.form.get('destino')
