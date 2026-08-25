@@ -55,6 +55,7 @@
                             <th>Motivo / Destino</th>
                             <th>Estado / Ubicación</th>
                             <th class="text-center">Evidencia</th>
+                            <th class="text-center">Firma</th> <!-- NUEVA COLUMNA DE FIRMA -->
                             <th class="text-center">Acción</th>
                         </tr>
                     </thead>
@@ -137,6 +138,15 @@
                                 {% endif %}
                             </td>
 
+                            <!-- NUEVA CELDA PARA MOSTRAR LA FIRMA EN MINIATURA -->
+                            <td class="text-center">
+                                {% if r['firma'] %}
+                                    <img src="{{ r['firma'] }}" alt="Firma" width="80" style="background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 2px;" title="Firma digital registrada">
+                                {% else %}
+                                    <span class="text-muted small">Sin firma</span>
+                                {% endif %}
+                            </td>
+
                             <td class="text-center">
                                 {% if es_repuesto %}
                                     {% if not es_devuelto %}
@@ -147,14 +157,13 @@
                                         <span class="text-muted small fw-bold"><i class="bi bi-check-all me-1"></i>Devuelto</span>
                                     {% endif %}
                                 {% else %}
-                                    <!-- Si es una máquina de renta, solo mostramos que está asignada sin botón de devolución -->
                                     <span class="text-muted small"><i class="bi bi-shield-check me-1"></i> Registrado</span>
                                 {% endif %}
                             </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="8" class="text-center py-5 text-muted">
+                            <td colspan="9" class="text-center py-5 text-muted">
                                 <i class="bi bi-inbox display-6 d-block mb-2 text-secondary opacity-50"></i>
                                 No hay registros de movimientos en el historial.
                             </td>
