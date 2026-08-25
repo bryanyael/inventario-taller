@@ -115,7 +115,7 @@
         </div>
     </div>
 
-    <!-- MODALES DE SALIDA (TOMAR PIEZA) -->
+    <!-- MODALES DE SALIDA (TOMAR PIEZA) CON FIRMA -->
     {% for pieza in piezas %}
     {% set p_nombre = pieza['nombre'] or pieza['nombre_pieza'] or pieza['pieza'] or 'Pieza' %}
     {% set stock_disp = (pieza['stock'] or pieza['cantidad'] or pieza['stock_disponible'] or 0)|int %}
@@ -127,7 +127,8 @@
                     <h5 class="modal-title fw-bold fs-6"><i class="bi bi-box-arrow-down me-2"></i>Tomar: {{ p_nombre }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form action="{{ url_for('usar_pieza_suelta', pieza_id=pieza['id']) }}" method="POST" enctype="multipart/form-data">
+                <!-- Añadido onsubmit para validar que el técnico haya firmado -->
+                <form id="formTomar{{ pieza['id'] }}" action="{{ url_for('tomar_pieza_suelta', codigo=pieza['codigo'] if 'codigo' in pieza else pieza['id']) }}" method="POST" enctype="multipart/form-data" onsubmit="return validarFirma('{{ pieza['id'] }}')">
                     <div class="modal-body p-3">
                         <div class="mb-3">
                             <label class="form-label fw-bold small">Cantidad a tomar (Máx: {{ stock_disp }}):</label>
@@ -141,6 +142,22 @@
                             <label class="form-label fw-bold small">¿Para qué máquina o trabajo se usará?</label>
                             <input type="text" name="motivo" class="form-control" placeholder="Ej. Mantenimiento" required>
                         </div>
+
+                        <!-- Recuadro para la Firma Digital -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small"><i class="bi bi-pen me-1"></i>Firma del Técnico:</label>
+                            <div class="border rounded bg-white p-2 text-center position-relative">
+                                <canvas id="canvasFirma{{ pieza['id'] }}" width="400" height="150" style="border: 1px dashed #ced4da; touch-action: none; width: 100%; cursor: crosshair; background-color: #fff;"></canvas>
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <span class="text-muted small" id="estadoFirma{{ pieza['id'] }}">Firme arriba</span>
+                                    <button type="button" class="btn btn-outline-danger btn-sm py-0 px-2" onclick="limpiarFirma('{{ pieza['id'] }}')">
+                                        <i class="bi bi-eraser me-1"></i>Limpiar
+                                    </button>
+                                </div>
+                                <input type="hidden" name="firma_imagen" id="inputFirma{{ pieza['id'] }}">
+                            </div>
+                        </div>
+
                         <div class="mb-3">
                             <label class="form-label fw-bold small"><i class="bi bi-camera me-1"></i>Evidencia / Foto (Opcional):</label>
                             <input type="file" name="foto" class="form-control" accept="image/*">
@@ -210,6 +227,16 @@
                     document.body.style.overflow = '';
                     document.body.style.paddingRight = '';
                 });
+
+                // Activar el canvas cuando se abre el modal de tomar pieza
+                modal.addEventListener('shown.bs.modal', function () {
+                    if (modal.id.startsWith('modalTomar')) {
+                        const idMatch = modal.id.replace('modalTomar', '');
+                        if (idMatch) {
+                            inicializarCanvas(idMatch);
+                        }
+                    }
+                });
             });
 
             // Buscador en tiempo real
@@ -220,7 +247,6 @@
                     const filas = document.querySelectorAll('table tbody tr');
 
                     filas.forEach(function (fila) {
-                        // Evita ocultar la fila de "No hay piezas registradas"
                         if (fila.querySelector('td[colspan]')) {
                             return;
                         }
@@ -235,6 +261,97 @@
                 });
             }
         });
+
+        // Lógica de Firma Digital con Canvas
+        const firmasActivas = {};
+
+        function inicializarCanvas(id) {
+            const canvas = document.getElementById('canvasFirma' + id);
+            if (!canvas) return;
+            if (firmasActivas[id]) return;
+
+            const ctx = canvas.getContext('2d');
+            let dibujando = false;
+            let tieneTrazo = false;
+
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+
+            function obtenerPosicion(e) {
+                const rect = canvas.getBoundingClientRect();
+                let clientX = e.clientX;
+                let clientY = e.clientY;
+
+                if (e.touches && e.touches.length > 0) {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                }
+
+                return {
+                    x: clientX - rect.left,
+                    y: clientY - rect.top
+                };
+            }
+
+            function empezarTrazo(e) {
+                e.preventDefault();
+                dibujando = true;
+                const pos = obtenerPosicion(e);
+                ctx.beginPath();
+                ctx.moveTo(pos.x, pos.y);
+            }
+
+            function dibujar(e) {
+                if (!dibujando) return;
+                e.preventDefault();
+                const pos = obtenerPosicion(e);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+                tieneTrazo = true;
+                document.getElementById('estadoFirma' + id).textContent = 'Firmado correctamente';
+                document.getElementById('estadoFirma' + id).className = 'text-success small fw-bold';
+            }
+
+            function terminarTrazo(e) {
+                if (!dibujando) return;
+                e.preventDefault();
+                dibujando = false;
+                if (tieneTrazo) {
+                    document.getElementById('inputFirma' + id).value = canvas.toDataURL('image/png');
+                }
+            }
+
+            canvas.addEventListener('mousedown', empezarTrazo);
+            canvas.addEventListener('mousemove', dibujar);
+            canvas.addEventListener('mouseup', terminarTrazo);
+            canvas.addEventListener('mouseleave', terminarTrazo);
+
+            canvas.addEventListener('touchstart', empezarTrazo, { passive: false });
+            canvas.addEventListener('touchmove', dibujar, { passive: false });
+            canvas.addEventListener('touchend', terminarTrazo, { passive: false });
+
+            firmasActivas[id] = true;
+        }
+
+        function limpiarFirma(id) {
+            const canvas = document.getElementById('canvasFirma' + id);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('inputFirma' + id).value = '';
+            document.getElementById('estadoFirma' + id).textContent = 'Firme arriba';
+            document.getElementById('estadoFirma' + id).className = 'text-muted small';
+        }
+
+        function validarFirma(id) {
+            const inputFirma = document.getElementById('inputFirma' + id);
+            if (!inputFirma || !inputFirma.value) {
+                alert('Por favor, es obligatorio que el técnico firme antes de confirmar la salida.');
+                return false;
+            }
+            return true;
+        }
     </script>
 </body>
 </html>
