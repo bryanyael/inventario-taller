@@ -729,13 +729,18 @@ def imprimir_qrs():
 def exportar_excel():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute("SELECT maquina_codigo, pieza_nombre, tecnico, motivo, fecha_regreso, estado_solicitud, fecha_devuelto, fecha_registro FROM historial ORDER BY id DESC")
+    
+    # 1. Agregamos 'firma' a la consulta SQL
+    cursor.execute("SELECT maquina_codigo, pieza_nombre, tecnico, motivo, fecha_regreso, estado_solicitud, fecha_devuelto, firma, fecha_registro FROM historial ORDER BY id DESC")
     rows = cursor.fetchall()
     conn.close()
 
     si = StringIO()
     cw = csv.writer(si)
-    cw.writerow(['Maquina', 'Pieza', 'Tecnico', 'Motivo', 'Fecha Regreso Est.', 'Estado', 'Fecha Devuelto', 'Fecha Registro'])
+    
+    # 2. Agregamos la columna 'Firma (Base64)' en las cabeceras
+    cw.writerow(['Maquina', 'Pieza', 'Tecnico', 'Motivo', 'Fecha Regreso Est.', 'Estado', 'Fecha Devuelto', 'Firma (Base64)', 'Fecha Registro'])
+    
     cw.writerows(rows)
 
     output = si.getvalue()
