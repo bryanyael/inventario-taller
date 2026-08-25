@@ -321,6 +321,7 @@ def enviar_solicitud():
     tecnico = request.form.get("tecnico")
     motivo = request.form.get("motivo")
     fecha_regreso = request.form.get("fecha_regreso")
+    firma = request.form.get("firma") # <--- Capturamos la firma digital del formulario
 
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -332,10 +333,11 @@ def enviar_solicitud():
     nuevo_estado = f"Extraída por {tecnico} (Estimado: {fecha_regreso})"
     cursor.execute("UPDATE piezas SET disponible = 0, estado = ? WHERE id = ?", (nuevo_estado, pieza_id))
 
+    # Incluimos la columna 'firma' en la inserción del historial
     cursor.execute('''
-        INSERT INTO historial (maquina_codigo, pieza_id, pieza_nombre, tecnico, motivo, fecha_regreso, estado_solicitud)
-        VALUES (?, ?, ?, ?, ?, ?, 'Pendiente')
-    ''', (codigo, pieza_id, nombre_pieza, tecnico, motivo, fecha_regreso))
+        INSERT INTO historial (maquina_codigo, pieza_id, pieza_nombre, tecnico, motivo, fecha_regreso, estado_solicitud, firma)
+        VALUES (?, ?, ?, ?, ?, ?, 'Pendiente', ?)
+    ''', (codigo, pieza_id, nombre_pieza, tecnico, motivo, fecha_regreso, firma))
 
     conn.commit()
     conn.close()
