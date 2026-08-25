@@ -414,21 +414,41 @@ def usar_pieza_suelta(pieza_id):
     return redirect(url_for('piezas_sueltas'))
 # ==========================================
 # RUTAS DE ADMINISTRACIÓN Y HISTORIAL
-
 @app.route('/piezas_sueltas')
 def piezas_sueltas():
+    # Capturamos lo que el usuario escriba en el buscador (si está vacío, toma '')
+    busqueda = request.args.get('q', '').strip()
+    
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
-    # Seleccionamos todas las piezas ordenadas de más reciente a más antigua, sin ocultarlas si llegan a 0
     try:
-        c.execute("SELECT * FROM piezas_sueltas ORDER BY id DESC")
+        if busqueda:
+            # Filtramos por código, nombre o ubicación usando LIKE de forma flexible
+            query = """
+                SELECT * FROM piezas_sueltas 
+                WHERE codigo LIKE ? OR nombre LIKE ? OR ubicacion LIKE ? 
+                ORDER BY id DESC
+            """
+            c.execute(query, (f"%{busqueda}%", f"%{busqueda}%", f"%{busqueda}%"))
+        else:
+            c.execute("SELECT * FROM piezas_sueltas ORDER BY id DESC")
     except sqlite3.OperationalError:
-        c.execute("SELECT * FROM piezas_sueltas ORDER BY id DESC")
+        # Por si alguna columna cambiara o hubiera un error operativo, respaldamos la consulta básica
+        if busqueda:
+            query = """
+                SELECT * FROM piezas_sueltas 
+                WHERE codigo LIKE ? OR nombre LIKE ? OR ubicacion LIKE ? 
+                ORDER BY id DESC
+            """
+            c.execute(query, (f"%{busqueda}%", f"%{busqueda}%", f"%{busqueda}%"))
+        else:
+            c.execute("SELECT * FROM piezas_sueltas ORDER BY id DESC")
         
     piezas = c.fetchall()
     conn.close()
+    
     return render_template('piezas_sueltas.html', piezas=piezas)
 
 # ==========================================
