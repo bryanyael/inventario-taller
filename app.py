@@ -85,18 +85,25 @@ def init_db():
     # Garantizar columnas opcionales
     try:
         cursor.execute("ALTER TABLE maquinas ADD COLUMN destino TEXT;")
-
     except sqlite3.OperationalError:
-
         pass
+
     try:
         cursor.execute("ALTER TABLE maquinas ADD COLUMN tecnico_cargo TEXT;")
     except sqlite3.OperationalError:
         pass
+
     try:
         cursor.execute("ALTER TABLE historial ADD COLUMN foto_evidencia TEXT;")
     except sqlite3.OperationalError:
         pass
+
+    # <--- Agregamos esta línea para garantizar la columna firma si la tabla ya existía
+    try:
+        cursor.execute("ALTER TABLE historial ADD COLUMN firma TEXT;")
+    except sqlite3.OperationalError:
+        pass
+
     conn.commit()
     conn.close()
 
