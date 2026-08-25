@@ -354,7 +354,7 @@ def enviar_solicitud():
         </a>
     </div>
     """
-    @app.route('/devolver_pieza/<codigo>/<int:pieza_id>', methods=['POST'])
+@app.route('/devolver_pieza/<codigo>/<int:pieza_id>', methods=['POST'])
 def devolver_pieza_maquina(codigo, pieza_id):
     # 1. Capturar la firma digital y la foto de evidencia del modal
     firma = request.form.get('firma')
